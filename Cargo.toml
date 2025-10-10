@@ -1,5 +1,5 @@
 [package]
-name = "lab02_config_parser_cli"
+name = "config_parser_cli"
 version = "0.1.0"
 edition = "2021"
 description = "Lab 2 — Config Parser CLI (20 pts)"
