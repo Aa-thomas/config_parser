@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "config",
+    name = "Config Parser",
     about = "CLI tool to read and edit JSON and TOML config files",
     version
 )]
