@@ -1,8 +1,16 @@
+pub mod Type;
 pub mod file_io;
+pub mod not_supported;
+pub mod parse;
+pub mod path;
 pub mod usage;
 
 pub use file_io::FileIoError;
+pub use not_supported::NotSupportedError;
+pub use parse::ParseError;
+pub use path::PathError;
 pub use usage::UsageError;
+pub use Type::TypeError;
 
 use std::process::ExitCode;
 use thiserror::Error;
@@ -14,6 +22,18 @@ pub enum ConfigError {
 
     #[error(transparent)]
     FileIO(#[from] FileIoError),
+
+    #[error(transparent)]
+    Parse(#[from] ParseError),
+
+    #[error(transparent)]
+    Path(#[from] PathError),
+
+    #[error(transparent)]
+    Type(#[from] TypeError),
+
+    #[error(transparent)]
+    NotSupported(#[from] NotSupportedError),
 }
 
 impl ConfigError {
@@ -21,6 +41,10 @@ impl ConfigError {
         match self {
             ConfigError::Usage(_) => ExitCode::from(2),
             ConfigError::FileIO(_) => ExitCode::from(3),
+            ConfigError::Parse(_) => ExitCode::from(3),
+            ConfigError::Path(_) => ExitCode::from(4),
+            ConfigError::Type(_) => ExitCode::from(5),
+            ConfigError::NotSupported(_) => ExitCode::from(6),
         }
     }
 }
