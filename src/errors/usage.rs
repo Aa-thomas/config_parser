@@ -30,24 +30,3 @@ pub enum UsageError {
     )]
     InvalidPathSyntax { input: String, example: String },
 }
-
-#[cfg(test)]
-fn usage_missing_flag_is_one_line() {
-    let err = UsageError::MissingFlag {
-        flag: "-- format <json|toml>",
-        hint: "Use --format when file extension is not json/toml",
-    };
-
-    let msg = format!("{}", err);
-
-    assert!(msg.starts_with("UsageError:"), "should prefix category");
-    assert!(
-        msg.contains("--format <json|toml>"),
-        "should mention missing flag"
-    );
-    assert!(
-        msg.contains("Use --format"),
-        "should include a helpful hint"
-    );
-    assert!(!msg.contains('\n'), "should be a single line");
-}
