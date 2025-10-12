@@ -1,16 +1,16 @@
-pub mod Type;
 pub mod file_io;
 pub mod not_supported;
 pub mod parse;
 pub mod path;
 pub mod usage;
+pub mod value_type;
 
 pub use file_io::FileIoError;
 pub use not_supported::NotSupportedError;
 pub use parse::ParseError;
 pub use path::PathError;
 pub use usage::UsageError;
-pub use Type::TypeError;
+pub use value_type::TypeError;
 
 use std::process::ExitCode;
 use thiserror::Error;
