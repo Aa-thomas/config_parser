@@ -9,10 +9,18 @@ license = "MIT-0"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", optional = true }
 toml = "0.8"
 thiserror = "1"
+toml_edit  = { version = "0.21", optional = true }
 
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
+
+
+[features]
+default = []
+with-serde-json = ["dep:serde_json"]
+with-toml-edit = ["dep:toml_edit"]
+
