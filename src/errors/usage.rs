@@ -13,20 +13,30 @@ pub enum UsageError {
         Valid options: {valid:?}. Example: --format json"
     )]
     InvalidChoice {
-        provided: String,
-        flag: String,
-        valid: Vec<String>,
+        provided: &'static str,
+        flag: &'static str,
+        valid: Vec<&'static str>,
     },
 
     #[error("UsageError: flags {a} and {b} cannot be used together. {hint}")]
-    ConflictingFlags { a: String, b: String, hint: String },
+    ConflictingFlags {
+        a: &'static str,
+        b: &'static str,
+        hint: &'static str,
+    },
 
     #[error("UsageError: missing argument {name}. Example: {example}")]
-    MissingArgument { name: String, example: String },
+    MissingArgument {
+        name: &'static str,
+        example: &'static str,
+    },
 
     #[error(
         "UsageError: invalid key-path syntax: '{input}'. \
     Example: {example}"
     )]
-    InvalidPathSyntax { input: String, example: String },
+    InvalidPathSyntax {
+        input: &'static str,
+        example: &'static str,
+    },
 }
