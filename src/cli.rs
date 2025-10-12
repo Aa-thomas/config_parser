@@ -17,14 +17,14 @@ pub struct Cli {
         value_name = "FORMAT",
         help = "Format of config file: JSON or TOML"
     )]
-    pub format: Option<Format>,
+    pub format: Option<ConfigFormat>,
 
     #[command(subcommand)]
     pub command: Command,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
-pub enum Format {
+pub enum ConfigFormat {
     Json,
     Toml,
 }
