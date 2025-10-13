@@ -81,6 +81,20 @@ impl fmt::Display for PathSeg {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ValuePath(pub Vec<PathSeg>);
 
+impl ValuePath {
+    pub fn push_key(&mut self, k: impl Into<String>) {
+        self.0.push(PathSeg::Key(k.into()));
+    }
+    pub fn push_index(&mut self, i: usize) {
+        self.0.push(PathSeg::Index(i));
+    }
+    pub fn pop(&mut self) {
+        let _ = self.0.pop();
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 impl fmt::Display for ValuePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, seg) in self.0.iter().enumerate() {
