@@ -18,6 +18,11 @@ pub enum PathError {
         index: usize,
         found: TypeKind,
     },
+    #[error("Not a container at {prefix}: attempted to list children on a scalar {found}")]
+    NotAContainer {
+        prefix: ValuePath,
+        found: TypeKind, // e.g., "String", "Integer", "Boolean"
+    },
     #[error("Key not found at {prefix}: missing key `{key}`")]
     KeyNotFound { prefix: ValuePath, key: String },
     #[error("Index out of bounds at {prefix}: index {index} >= len {len}")]
