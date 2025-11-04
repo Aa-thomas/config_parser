@@ -1,3 +1,4 @@
+use crate::shared::types::ConfigFormat;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -21,12 +22,6 @@ pub struct Cli {
 
     #[command(subcommand)]
     pub command: Command,
-}
-
-#[derive(Copy, Clone, Debug, ValueEnum)]
-pub enum ConfigFormat {
-    Json,
-    Toml,
 }
 
 #[derive(Subcommand, Debug)]

@@ -1,8 +1,5 @@
-mod cli;
-mod errors;
-
 use clap::Parser;
-use cli::{Cli, Command};
+use config_parser::cli::{Cli, Command};
 
 fn main() {
     let cli = Cli::parse();

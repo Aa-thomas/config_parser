@@ -1,90 +1,7 @@
-use crate::errors::parse::{PathSeg, ValuePath};
-use crate::errors::value_type::TypeKind;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum PathError {
-    #[error("Empty path is not allowed")]
-    EmptyPath,
-    #[error("Not an object at {prefix}: cannot access key `{key}` on {found}")]
-    NotAnObject {
-        prefix: ValuePath,
-        key: String,
-        found: TypeKind,
-    },
-    #[error("Not an array at {prefix}: cannot access index [{index}] on {found}")]
-    NotAnArray {
-        prefix: ValuePath,
-        index: usize,
-        found: TypeKind,
-    },
-    #[error("Not a container at {prefix}: attempted to list children on a scalar {found}")]
-    NotAContainer {
-        prefix: ValuePath,
-        found: TypeKind, // e.g., "String", "Integer", "Boolean"
-    },
-    #[error("Key not found at {prefix}: missing key `{key}`")]
-    KeyNotFound { prefix: ValuePath, key: String },
-    #[error("Index out of bounds at {prefix}: index {index} >= len {len}")]
-    IndexOutOfBounds {
-        prefix: ValuePath,
-        index: usize,
-        len: usize,
-    },
-    #[error("Invalid path segment at {prefix}: segment `{segment}` is not valid ({reason})")]
-    InvalidSegment {
-        prefix: ValuePath,
-        segment: String,
-        reason: String,
-    },
-    #[error("Unsupported path operation at {prefix}: {message}")]
-    Unsupported { prefix: ValuePath, message: String },
-}
-
-impl PathError {
-    pub fn not_object(prefix: ValuePath, key: impl Into<String>, found: TypeKind) -> Self {
-        Self::NotAnObject {
-            prefix,
-            key: key.into(),
-            found,
-        }
-    }
-    pub fn not_array(prefix: ValuePath, index: usize, found: TypeKind) -> Self {
-        Self::NotAnArray {
-            prefix,
-            index,
-            found,
-        }
-    }
-    pub fn key_not_found(prefix: ValuePath, key: impl Into<String>) -> Self {
-        Self::KeyNotFound {
-            prefix,
-            key: key.into(),
-        }
-    }
-    pub fn oob(prefix: ValuePath, index: usize, len: usize) -> Self {
-        Self::IndexOutOfBounds { prefix, index, len }
-    }
-    pub fn invalid_seg(
-        prefix: ValuePath,
-        segment: impl Into<String>,
-        reason: impl Into<String>,
-    ) -> Self {
-        Self::InvalidSegment {
-            prefix,
-            segment: segment.into(),
-            reason: reason.into(),
-        }
-    }
-    pub fn unsupported(prefix: ValuePath, message: impl Into<String>) -> Self {
-        Self::Unsupported {
-            prefix,
-            message: message.into(),
-        }
-    }
-}
-
-pub type PathResult<T> = Result<T, PathError>;
+use crate::shared::{
+    errors::PathError,
+    types::{PathResult, PathSeg, TomlAt, TomlCursor, TypeKind, ValuePath},
+};
 
 pub fn get_json_at_path<'a>(
     root: &'a serde_json::Value,
@@ -126,61 +43,6 @@ pub fn get_json_at_path<'a>(
     }
 
     Ok(cur)
-}
-
-#[derive(Debug)]
-pub enum TomlAt<'a> {
-    Item(&'a toml_edit::Item),
-    Value(&'a toml_edit::Value),
-    Table(&'a toml_edit::Table),
-}
-
-impl<'a> TomlAt<'a> {
-    pub fn as_value(&self) -> Option<&'a toml_edit::Value> {
-        match self {
-            TomlAt::Value(v) => Some(v),
-            TomlAt::Item(item) => item.as_value(),
-            TomlAt::Table(_) => None,
-        }
-    }
-
-    fn type_kind(&self) -> TypeKind {
-        match self {
-            TomlAt::Item(item) => TypeKind::from_toml_item(item),
-            TomlAt::Value(val) => TypeKind::from_toml_value(val),
-            TomlAt::Table(_) => {
-                TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
-            }
-        }
-    }
-}
-
-impl<'a> std::fmt::Display for TomlAt<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TomlAt::Item(item) => write!(f, "{}", item),
-            TomlAt::Value(val) => write!(f, "{}", val),
-            TomlAt::Table(tbl) => write!(f, "{}", tbl),
-        }
-    }
-}
-
-enum TomlCursor<'a> {
-    Item(&'a toml_edit::Item),
-    Value(&'a toml_edit::Value),
-    Table(&'a toml_edit::Table),
-}
-
-impl<'a> TomlCursor<'a> {
-    fn type_kind(&self) -> TypeKind {
-        match self {
-            TomlCursor::Item(item) => TypeKind::from_toml_item(item),
-            TomlCursor::Value(val) => TypeKind::from_toml_value(val),
-            TomlCursor::Table(_) => {
-                TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
-            }
-        }
-    }
 }
 
 pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> PathResult<TomlAt<'a>> {
@@ -312,25 +174,4 @@ pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> Path
         TomlCursor::Value(val) => TomlAt::Value(val),
         TomlCursor::Table(tbl) => TomlAt::Table(tbl),
     })
-}
-
-pub fn suggest<'a>(needle: &str, hay: impl IntoIterator<Item = &'a str>) -> Option<String> {
-    let mut best: Option<(usize, &str)> = None;
-
-    for h in hay {
-        let len_diff = needle.len().abs_diff(h.len());
-        let common_prefix = needle
-            .chars()
-            .zip(h.chars())
-            .take_while(|(a, b)| a == b)
-            .count();
-
-        let score = len_diff.saturating_sub(common_prefix);
-
-        if best.map_or(true, |(best_score, _)| score < best_score) {
-            best = Some((score, h));
-        }
-    }
-
-    best.map(|(_, h)| h.to_string())
 }
