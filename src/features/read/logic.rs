@@ -1,7 +1,73 @@
+use std::path::PathBuf;
+
+use anyhow::Error;
+
 use crate::shared::{
     errors::PathError,
     types::{PathResult, PathSeg, TomlAt, TomlCursor, TypeKind, ValuePath},
 };
+
+pub fn create_value_path(input_path: &str) -> PathResult<ValuePath> {
+    let mut output_path = ValuePath::new();
+    let chars: Vec<char> = input_path.chars().collect();
+    let mut temp = String::new();
+
+    enum State {
+        Default,
+        InBracket,
+        InQuotes(char),
+    }
+
+    let mut state = State::Default;
+
+    fn push_key(out: &mut ValuePath, buf: &mut String) {
+        if !buf.is_empty() {
+            out.push_key(std::mem::take(buf));
+        }
+    }
+
+    for char in chars {
+        match state {
+            State::Default => match char {
+                '.' => {
+                    push_key(&mut output_path, &mut temp);
+                }
+                '[' => {
+                    push_key(&mut output_path, &mut temp);
+                    state = State::InBracket;
+                }
+                _ => temp.push(char),
+            },
+            State::InBracket => match char {
+                '0'..='9' => temp.push(char),
+                ']' => {
+                    output_path.push_index(temp.parse().unwrap());
+                    temp.clear();
+                    state = State::Default;
+                }
+                '"' => {
+                    state = State::InQuotes(char);
+                }
+                _ => unreachable!("validated input should not hit this branch"),
+            },
+            State::InQuotes(q_mark) => match char {
+                char if char == q_mark => {
+                    push_key(&mut output_path, &mut temp);
+                }
+                _ => temp.push(char),
+            },
+        }
+    }
+
+    // push the trailing dot segment (if any)
+    if let State::Default = state {
+        push_key(&mut output_path, &mut temp);
+    } else {
+        unreachable!("validator should ensure no unclosed bracket/quote")
+    }
+
+    Ok(output_path)
+}
 
 pub fn get_json_at_path<'a>(
     root: &'a serde_json::Value,

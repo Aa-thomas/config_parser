@@ -1,6 +1,6 @@
-use std::{fmt, path::PathBuf};
 use crate::shared::errors::{ParseError, PathError};
 use clap::ValueEnum;
+use std::{fmt, path::PathBuf};
 
 //----- COMMON TYPES -----
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -159,6 +159,10 @@ impl fmt::Display for PathSeg {
 pub struct ValuePath(pub Vec<PathSeg>);
 
 impl ValuePath {
+    pub fn new() -> Self {
+        ValuePath(Vec::new())
+    }
+
     pub fn push_key(&mut self, k: impl Into<String>) {
         self.0.push(PathSeg::Key(k.into()));
     }
@@ -172,6 +176,7 @@ impl ValuePath {
         self.0.is_empty()
     }
 }
+
 impl fmt::Display for ValuePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, seg) in self.0.iter().enumerate() {
