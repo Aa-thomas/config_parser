@@ -1,6 +1,9 @@
-use crate::shared::errors::{ParseError, PathError};
+use crate::{
+    features::validate::validate::validate_path_syntax,
+    shared::errors::{ParseError, PathError},
+};
 use clap::ValueEnum;
-use std::{fmt, path::PathBuf};
+use std::{fmt, path::PathBuf, str::FromStr};
 
 //----- COMMON TYPES -----
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -197,6 +200,31 @@ impl fmt::Display for ValuePath {
 
 pub type PathResult<T> = Result<T, PathError>;
 
+pub struct ValidatedPath(String);
+
+impl ValidatedPath {
+    pub fn new(path: &str) -> Result<Self, PathError> {
+        validate_path_syntax(path)?;
+        Ok(ValidatedPath(path.to_string()))
+    }
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for ValidatedPath {
+    type Err = PathError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        ValidatedPath::new(s)
+    }
+}
+
+impl TryFrom<&str> for ValidatedPath {
+    type Error = PathError;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        ValidatedPath::new(s)
+    }
+}
 //----- TOML TYPES -----
 #[derive(Debug)]
 pub enum TomlAt<'a> {
