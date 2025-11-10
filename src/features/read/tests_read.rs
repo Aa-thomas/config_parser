@@ -1,7 +1,9 @@
-use crate::features::read::logic::{create_value_path, get_json_at_path, get_toml_at_path};
+use crate::features::read::read::{create_value_path, get_json_at_path, get_toml_at_path};
 
 #[cfg(test)]
 mod tests {
+
+    use std::borrow::Cow;
 
     use crate::shared::types::{PathSeg, ValuePath};
 
@@ -13,13 +15,17 @@ mod tests {
     // ==========================
 
     /// Flatten a ValuePath into ["key", "1", "key", ...] for easy asserts.
-    fn create_segments(vp: &ValuePath) -> Vec<String> {
+    fn create_segments<'a>(vp: &'a ValuePath) -> Vec<Cow<'a, str>> {
         vp.0.iter()
             .map(|seg| match seg {
-                PathSeg::Key(k) => k.clone(),
-                PathSeg::Index(i) => i.to_string(),
+                PathSeg::Key(k) => Cow::Borrowed(k.as_str()),
+                PathSeg::Index(i) => Cow::Owned(i.to_string()),
             })
             .collect()
+    }
+    /// Small TOML parser for inline fixtures
+    fn parse_toml(doc: &str) -> toml_edit::Document {
+        doc.parse::<toml_edit::Document>().unwrap()
     }
 
     /// JSON fixture used across tests
@@ -58,134 +64,106 @@ mod tests {
         })
     }
 
-    /// Small TOML parser for inline fixtures
-    fn parse_toml(doc: &str) -> toml_edit::Document {
-        doc.parse::<toml_edit::Document>().unwrap()
-    }
-
     // ============================================================
     // create_value_path tests  ->  cargo test create_value_path_tests
     // ============================================================
     mod create_value_path_tests {
-        use crate::shared::errors::PathError;
+        use crate::shared::{
+            errors::PathError,
+            types::{PathResult, ValidatedPath},
+        };
 
         use super::*;
 
         // ---------- Positive ----------
 
         #[test]
-        fn parses_dot_only() {
-            let vp = create_value_path("top.int").unwrap();
+        fn parses_dot_only() -> PathResult<()> {
+            let test_path = "top.int";
+            let validated: ValidatedPath = test_path.parse()?;
+            let vp = create_value_path(&validated);
             let result = create_segments(&vp);
             let expected = ["top", "int"];
             assert_eq!(result, expected);
+            Ok(())
         }
 
         #[test]
-        fn parses_index_in_brackets() {
-            let vp = create_value_path("arrays.nums[2]").unwrap();
+        fn parses_index_in_brackets() -> PathResult<()> {
+            let test_path = "arrays.nums[2]";
+            let validated: ValidatedPath = test_path.parse()?;
+            let vp = create_value_path(&validated);
             let result = create_segments(&vp);
             let expected = ["arrays", "nums", "2"];
             assert_eq!(result, expected);
+            Ok(())
         }
 
         #[test]
-        fn parses_multiple_consecutive_indices() {
-            let vp = create_value_path("root_array_like[1][2]").unwrap();
+        fn parses_multiple_consecutive_indices() -> PathResult<()> {
+            let test_path = "root_array_like[1][2]";
+            let validated: ValidatedPath = test_path.parse()?;
+            let vp = create_value_path(&validated);
             let result = create_segments(&vp);
             let expected = ["root_array_like", "1", "2"];
             assert_eq!(result, expected);
+            Ok(())
         }
 
         #[test]
-        fn parses_mixed_dot_and_brackets() {
-            let vp = create_value_path("nested.arr_in_obj[1].y[2]").unwrap();
+        fn parses_mixed_dot_and_brackets() -> PathResult<()> {
+            let test_path = "nested.arr_in_obj[1].y[2]";
+            let validated: ValidatedPath = test_path.parse()?;
+            let vp = create_value_path(&validated);
             let result = create_segments(&vp);
             let expected = ["nested", "arr_in_obj", "1", "y", "2"];
             assert_eq!(result, expected);
+            Ok(())
         }
 
         #[test]
-        fn parses_quoted_key_double_quotes() {
-            let vp = create_value_path(r#"top["spaced key"]["dot.key"]"#).unwrap();
+        fn parses_quoted_key_double_quotes() -> PathResult<()> {
+            let test_path = r#"top["spaced key"]["dot.key"]"#;
+            let validated: ValidatedPath = test_path.parse()?;
+            let vp = create_value_path(&validated);
             let result = create_segments(&vp);
             let expected = ["top", "spaced key", "dot.key"];
             assert_eq!(result, expected);
+            Ok(())
         }
 
         #[test]
-        fn parses_quoted_key_single_quotes() {
-            let vp = create_value_path(r#"top['spaced key']['emoji']"#).unwrap();
+        fn parses_quoted_key_single_quotes() -> PathResult<()> {
+            let test_path = r#"top['spaced key']['emoji']"#;
+            let validated: ValidatedPath = test_path.parse()?;
+            let vp = create_value_path(&validated);
             let result = create_segments(&vp);
             let expected = ["top", "spaced key", "emoji"];
             assert_eq!(result, expected);
+            Ok(())
         }
 
         #[test]
-        fn parses_unicode_keys() {
-            let vp = create_value_path(r#"i18n["ключ"]"#).unwrap();
-            let result = create_segments(&vp);
-            let expected = ["i18n", "ключ"];
-            assert_eq!(result, expected);
+        fn parses_unicode_keys() -> PathResult<()> {
+            // Case 1
+            let p1 = r#"i18n["ключ"]"#;
+            let v1: ValidatedPath = p1.parse()?;
+            let vp1 = create_value_path(&v1);
+            let result1 = create_segments(&vp1);
+            let expected1 = ["i18n", "ключ"];
+            assert_eq!(result1, expected1);
 
-            let vp = create_value_path(r#"i18n["日本語"]["キー"]"#).unwrap();
-            let result = create_segments(&vp);
-            let expected = ["i18n", "日本語", "キー"];
-            assert_eq!(result, expected);
-        }
+            // Case 2
+            let p2 = r#"i18n["日本語"]["キー"]"#;
+            let v2: ValidatedPath = p2.parse()?;
+            let vp2 = create_value_path(&v2);
+            let result2 = create_segments(&vp2);
+            let expected2 = ["i18n", "日本語", "キー"];
+            assert_eq!(result2, expected2);
 
-        // ---------- Negative (syntax → InvalidSegment) ----------
-        // If your validator lives elsewhere, keep these here only if create_value_path returns these errors.
-
-        #[test]
-        fn errors_on_unclosed_bracket() {
-            let err = create_value_path("a[1").unwrap_err();
-            let result = matches!(err, PathError::InvalidSegment { .. });
-            let expected = true;
-            assert_eq!(result, expected);
-        }
-
-        #[test]
-        fn errors_on_empty_accessor() {
-            let err = create_value_path("a[]").unwrap_err();
-            let result = matches!(err, PathError::InvalidSegment { .. });
-            let expected = true;
-            assert_eq!(result, expected);
-        }
-
-        #[test]
-        fn errors_on_unclosed_quote() {
-            let err = create_value_path(r#"a["x"#).unwrap_err();
-            let result = matches!(err, PathError::InvalidSegment { .. });
-            let expected = true;
-            assert_eq!(result, expected);
-        }
-
-        #[test]
-        fn errors_on_trailing_dot() {
-            let err = create_value_path("a.").unwrap_err();
-            let result = matches!(err, PathError::InvalidSegment { .. });
-            let expected = true;
-            assert_eq!(result, expected);
-        }
-
-        #[test]
-        fn errors_on_double_dot() {
-            let err = create_value_path("a..b").unwrap_err();
-            let result = matches!(err, PathError::InvalidSegment { .. });
-            let expected = true;
-            assert_eq!(result, expected);
-        }
-
-        #[test]
-        fn errors_on_unquoted_identifier_in_brackets() {
-            let err = create_value_path("a[foo]").unwrap_err();
-            let result = matches!(err, PathError::InvalidSegment { .. });
-            let expected = true;
-            assert_eq!(result, expected);
+            Ok(())
         }
     }
-
     // ============================================================
     // get_json_at_path tests  ->  cargo test get_json_at_path_tests
     // ============================================================
@@ -307,14 +285,12 @@ mod tests {
             let root = doc.as_item();
             let vp = create_value_path("top.int").unwrap();
             let result = get_toml_at_path(root, &vp).unwrap();
-
-            let expected = value(1);
-            let got = match result {
-                TomlAt::Value(v) => v.clone(),
+            let result = match result {
+                TomlAt::Value(v) => v.as_integer().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            let result = got;
-            let expected = expected;
+            let expected = 1;
+
             assert_eq!(result, expected);
         }
 
@@ -330,13 +306,12 @@ mod tests {
             let vp = create_value_path(r#"top["spaced key"]["dot.key"]"#).unwrap();
             let result = get_toml_at_path(root, &vp).unwrap();
 
-            let expected = value("v");
-            let got = match result {
-                TomlAt::Value(v) => v.clone(),
+            let result = match result {
+                TomlAt::Value(v) => v.as_str().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            let result = got;
-            let expected = expected;
+            let expected = "v";
+
             assert_eq!(result, expected);
         }
 
@@ -352,13 +327,11 @@ mod tests {
             let vp = create_value_path("arrays.nums[2]").unwrap();
             let result = get_toml_at_path(root, &vp).unwrap();
 
-            let expected = value(2);
-            let got = match result {
-                TomlAt::Value(v) => v.clone(),
+            let result = match result {
+                TomlAt::Value(v) => v.as_integer().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            let result = got;
-            let expected = expected;
+            let expected = 2;
             assert_eq!(result, expected);
         }
 
@@ -379,25 +352,21 @@ mod tests {
             // root_array_like[1].k == "v1"
             let vp = create_value_path("root_array_like[1].k").unwrap();
             let result = get_toml_at_path(root, &vp).unwrap();
-            let expected = value("v1");
-            let got = match result {
-                TomlAt::Value(v) => v.clone(),
+            let result = match result {
+                TomlAt::Value(v) => v.as_str().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            let result = got;
-            let expected = expected;
+            let expected = "v1";
             assert_eq!(result, expected);
 
             // root_array_like[1].arr[2] == 3
             let vp = create_value_path("root_array_like[1].arr[2]").unwrap();
             let result = get_toml_at_path(root, &vp).unwrap();
-            let expected = value(3);
-            let got = match result {
-                TomlAt::Value(v) => v.clone(),
+            let result = match result {
+                TomlAt::Value(v) => v.as_integer().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            let result = got;
-            let expected = expected;
+            let expected = 3;
             assert_eq!(result, expected);
         }
 

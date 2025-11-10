@@ -4,12 +4,12 @@ use anyhow::Error;
 
 use crate::shared::{
     errors::PathError,
-    types::{PathResult, PathSeg, TomlAt, TomlCursor, TypeKind, ValuePath},
+    types::{PathResult, PathSeg, TomlAt, TomlCursor, TypeKind, ValidatedPath, ValuePath},
 };
 
-pub fn create_value_path(input_path: &str) -> PathResult<ValuePath> {
+pub fn create_value_path(validated_path: &ValidatedPath) -> ValuePath {
     let mut output_path = ValuePath::new();
-    let chars: Vec<char> = input_path.chars().collect();
+    let chars: Vec<char> = validated_path.as_str().chars().collect();
     let mut temp = String::new();
 
     enum State {
@@ -41,7 +41,8 @@ pub fn create_value_path(input_path: &str) -> PathResult<ValuePath> {
             State::InBracket => match char {
                 '0'..='9' => temp.push(char),
                 ']' => {
-                    output_path.push_index(temp.parse().unwrap());
+                    output_path
+                        .push_index(temp.parse().expect("validator bug: non-digit in index"));
                     temp.clear();
                     state = State::Default;
                 }
@@ -53,20 +54,14 @@ pub fn create_value_path(input_path: &str) -> PathResult<ValuePath> {
             State::InQuotes(q_mark) => match char {
                 char if char == q_mark => {
                     push_key(&mut output_path, &mut temp);
+                    state = State::InBracket;
                 }
                 _ => temp.push(char),
             },
         }
     }
 
-    // push the trailing dot segment (if any)
-    if let State::Default = state {
-        push_key(&mut output_path, &mut temp);
-    } else {
-        unreachable!("validator should ensure no unclosed bracket/quote")
-    }
-
-    Ok(output_path)
+    output_path
 }
 
 pub fn get_json_at_path<'a>(
