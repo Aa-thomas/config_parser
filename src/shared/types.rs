@@ -6,6 +6,7 @@ use clap::ValueEnum;
 use std::{fmt, path::PathBuf, str::FromStr};
 
 //----- COMMON TYPES -----
+
 #[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum ConfigFormat {
     Json,

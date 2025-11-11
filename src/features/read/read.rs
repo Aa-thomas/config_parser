@@ -65,7 +65,7 @@ pub fn create_value_path(validated_path: &ValidatedPath) -> ValuePath {
 }
 
 pub fn get_json_at_path<'a>(
-    root: &'a serde_json::Value,
+    document: &'a serde_json::Value,
     path: &ValuePath,
 ) -> PathResult<&'a serde_json::Value> {
     use serde_json::Value;
@@ -74,7 +74,7 @@ pub fn get_json_at_path<'a>(
         return Err(PathError::EmptyPath);
     }
 
-    let mut cur = root;
+    let mut cur = document;
     let mut prefix = ValuePath::default();
 
     for seg in &path.0 {
@@ -106,14 +106,17 @@ pub fn get_json_at_path<'a>(
     Ok(cur)
 }
 
-pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> PathResult<TomlAt<'a>> {
+pub fn get_toml_at_path<'a>(
+    document: &'a toml_edit::Item,
+    path: &ValuePath,
+) -> PathResult<TomlAt<'a>> {
     use toml_edit::{Item, Value};
 
     if path.is_empty() {
         return Err(PathError::EmptyPath);
     }
 
-    let mut cursor = TomlCursor::Item(root);
+    let mut cursor = TomlCursor::Item(document);
     let mut prefix = ValuePath::default();
 
     for seg in &path.0 {
