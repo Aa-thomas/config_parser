@@ -1,110 +1,8 @@
-use std::path::PathBuf;
-
-use anyhow::Error;
-
-use crate::shared::{
+use crate::shared::core::{
     errors::PathError,
-    types::{PathResult, PathSeg, TomlAt, TomlCursor, TypeKind, ValidatedPath, ValuePath},
+    path::{PathSeg, ValuePath},
+    types::{PathResult, TypeKind},
 };
-
-pub fn create_value_path(validated_path: &ValidatedPath) -> ValuePath {
-    let mut output_path = ValuePath::new();
-    let chars: Vec<char> = validated_path.as_str().chars().collect();
-    let mut temp = String::new();
-
-    enum State {
-        Default,
-        InBracket,
-        InQuotes(char),
-    }
-
-    let mut state = State::Default;
-
-    fn push_key(out: &mut ValuePath, buf: &mut String) {
-        if !buf.is_empty() {
-            out.push_key(std::mem::take(buf));
-        }
-    }
-
-    for char in chars {
-        match state {
-            State::Default => match char {
-                '.' => {
-                    push_key(&mut output_path, &mut temp);
-                }
-                '[' => {
-                    push_key(&mut output_path, &mut temp);
-                    state = State::InBracket;
-                }
-                _ => temp.push(char),
-            },
-            State::InBracket => match char {
-                '0'..='9' => temp.push(char),
-                ']' => {
-                    output_path
-                        .push_index(temp.parse().expect("validator bug: non-digit in index"));
-                    temp.clear();
-                    state = State::Default;
-                }
-                '"' => {
-                    state = State::InQuotes(char);
-                }
-                _ => unreachable!("validated input should not hit this branch"),
-            },
-            State::InQuotes(q_mark) => match char {
-                char if char == q_mark => {
-                    push_key(&mut output_path, &mut temp);
-                    state = State::InBracket;
-                }
-                _ => temp.push(char),
-            },
-        }
-    }
-
-    output_path
-}
-
-pub fn get_json_at_path<'a>(
-    document: &'a serde_json::Value,
-    path: &ValuePath,
-) -> PathResult<&'a serde_json::Value> {
-    use serde_json::Value;
-
-    if path.is_empty() {
-        return Err(PathError::EmptyPath);
-    }
-
-    let mut cur = document;
-    let mut prefix = ValuePath::default();
-
-    for seg in &path.0 {
-        match seg {
-            PathSeg::Key(k) => {
-                if let Value::Object(map) = cur {
-                    cur = map
-                        .get(k)
-                        .ok_or_else(|| PathError::key_not_found(prefix.clone(), k))?;
-                    prefix.push_key(k.clone());
-                } else {
-                    return Err(PathError::not_object(prefix, k, TypeKind::from_json(cur)));
-                }
-            }
-            PathSeg::Index(i) => {
-                if let Value::Array(arr) = cur {
-                    let len = arr.len();
-                    cur = arr
-                        .get(*i)
-                        .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                    prefix.push_index(*i);
-                } else {
-                    return Err(PathError::not_array(prefix, *i, TypeKind::from_json(cur)));
-                }
-            }
-        }
-    }
-
-    Ok(cur)
-}
 
 pub fn get_toml_at_path<'a>(
     document: &'a toml_edit::Item,
@@ -238,4 +136,105 @@ pub fn get_toml_at_path<'a>(
         TomlCursor::Value(val) => TomlAt::Value(val),
         TomlCursor::Table(tbl) => TomlAt::Table(tbl),
     })
+}
+
+//----- TOML TYPES -----
+#[derive(Debug)]
+pub enum TomlAt<'a> {
+    Item(&'a toml_edit::Item),
+    Value(&'a toml_edit::Value),
+    Table(&'a toml_edit::Table),
+}
+
+impl<'a> TomlAt<'a> {
+    pub fn as_value(&self) -> Option<&'a toml_edit::Value> {
+        match self {
+            TomlAt::Value(v) => Some(v),
+            TomlAt::Item(item) => item.as_value(),
+            TomlAt::Table(_) => None,
+        }
+    }
+
+    fn type_kind(&self) -> TypeKind {
+        match self {
+            TomlAt::Item(item) => TypeKind::from_toml_item(item),
+            TomlAt::Value(val) => TypeKind::from_toml_value(val),
+            TomlAt::Table(_) => {
+                TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
+            }
+        }
+    }
+}
+
+impl<'a> std::fmt::Display for TomlAt<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TomlAt::Item(item) => write!(f, "{}", item),
+            TomlAt::Value(val) => write!(f, "{}", val),
+            TomlAt::Table(tbl) => write!(f, "{}", tbl),
+        }
+    }
+}
+
+pub enum TomlCursor<'a> {
+    Item(&'a toml_edit::Item),
+    Value(&'a toml_edit::Value),
+    Table(&'a toml_edit::Table),
+}
+
+impl<'a> TomlCursor<'a> {
+    pub fn type_kind(&self) -> TypeKind {
+        match self {
+            TomlCursor::Item(item) => TypeKind::from_toml_item(item),
+            TomlCursor::Value(val) => TypeKind::from_toml_value(val),
+            TomlCursor::Table(_) => {
+                TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "with-toml-edit")]
+impl From<(ConfigFormat, &str, toml_edit::TomlError)> for ParseError {
+    fn from((format, src, err): (ConfigFormat, &str, toml_edit::TomlError)) -> Self {
+        // Try to get a byte offset from toml_edit's span; fall back to (1,1)
+        let (line, column) = err
+            .span()
+            .map(|span| {
+                // `span.start()` is a byte offset into `src`
+                let start = span.start();
+                offset_to_line_col(src, start)
+            })
+            .unwrap_or((1, 1));
+
+        let loc = SourceLocation::new(line, column);
+        let snippet = extract_snippet(src, line, column);
+
+        ParseError::ForeignParseError {
+            format,
+            loc,
+            #[allow(clippy::box_default)]
+            source: Box::new(err), // preserves real error chain
+            snippet,
+        }
+    }
+}
+
+#[cfg(feature = "with-toml-edit")]
+fn offset_to_line_col(src: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut col = 1usize;
+
+    for (i, ch) in src.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
 }
