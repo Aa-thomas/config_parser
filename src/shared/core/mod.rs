@@ -4,3 +4,4 @@ pub mod parse;
 pub mod path;
 pub mod suggest;
 pub mod types;
+pub mod validate;

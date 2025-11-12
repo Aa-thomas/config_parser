@@ -1,4 +1,8 @@
-use crate::shared::{errors::ParseError, types::ConfigFormat};
+use crate::shared::core::{
+    errors::path::PathError,
+    path::{PathResult, PathSeg, ValuePath},
+    types::TypeKind,
+};
 
 pub fn get_json_at_path<'a>(
     document: &'a serde_json::Value,

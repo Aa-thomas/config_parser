@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod tests_read {
 
     use std::borrow::Cow;
 
@@ -185,8 +185,8 @@ mod tests {
             let validated_path = ValidatedPath::new(test_path)?;
 
             let value_path = create_value_path(&validated_path);
-            let result = get_json_at_path(&document, &value_path);
-            let expected = &json!(1);
+            let result = get_json_at_path(&document, &value_path)?;
+            let expected = 1;
             assert_eq!(result, expected);
             Ok(())
         }
@@ -206,8 +206,8 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let result = get_json_at_path(&document, &value_path);
-            let expected = &json!(30);
+            let result = get_json_at_path(&document, &value_path)?;
+            let expected = 30;
             assert_eq!(result, expected);
 
             Ok(())
@@ -225,8 +225,8 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let result = get_json_at_path(&document, &value_path);
-            let expected = &json!("v");
+            let result = get_json_at_path(&document, &value_path)?;
+            let expected = "v";
             assert_eq!(result, expected);
 
             Ok(())
@@ -242,8 +242,8 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let result = get_json_at_path(&document, &value_path);
-            let expected = &json!("значение");
+            let result = get_json_at_path(&document, &value_path)?;
+            let expected = "значение";
             assert_eq!(result, expected);
 
             Ok(())
@@ -256,7 +256,7 @@ mod tests {
             let document = json!(null);
             let value_path = ValuePath::default();
 
-            let err = get_json_at_path(&document, &value_path);
+            let err = get_json_at_path(&document, &value_path).unwrap_err();
             assert!(matches!(err, PathError::EmptyPath));
 
             Ok(())
@@ -270,7 +270,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_json_at_path(&document, &value_path);
+            let err = get_json_at_path(&document, &value_path).unwrap_err();
             assert!(matches!(err, PathError::KeyNotFound { .. }));
 
             Ok(())
@@ -285,7 +285,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_json_at_path(&document, &value_path);
+            let err = get_json_at_path(&document, &value_path).unwrap_err();
             assert!(matches!(err, PathError::NotAnObject { .. }));
 
             Ok(())
@@ -300,7 +300,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_json_at_path(&document, &value_path);
+            let err = get_json_at_path(&document, &value_path).unwrap_err();
             assert!(matches!(err, PathError::NotAnArray { .. }));
 
             Ok(())
@@ -314,7 +314,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_json_at_path(&document, &value_path);
+            let err = get_json_at_path(&document, &value_path).unwrap_err();
             assert!(matches!(err, PathError::IndexOutOfBounds { .. }));
 
             Ok(())
@@ -348,15 +348,15 @@ mod tests {
 
             let test_path = "top.int";
             let validated_path = ValidatedPath::new(test_path)?;
-
             let value_path = create_value_path(&validated_path);
 
-            let at = get_toml_at_path(doc, &value_path);
-            let result = match at {
+            let result = get_toml_at_path(doc, &value_path).unwrap();
+            let result = match result {
                 TomlAt::Value(v) => v.as_integer().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            assert_eq!(result, 1);
+            let expected = 1;
+            assert_eq!(result, expected);
 
             Ok(())
         }
@@ -373,15 +373,15 @@ mod tests {
 
             let test_path = r#"top["spaced key"]["dot.key"]"#;
             let validated_path = ValidatedPath::new(test_path)?;
-
             let value_path = create_value_path(&validated_path);
 
-            let at = get_toml_at_path(doc, &value_path);
-            let result = match at {
+            let result = get_toml_at_path(doc, &value_path).unwrap();
+            let result = match result {
                 TomlAt::Value(v) => v.as_str().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            assert_eq!(result, "v");
+            let expected = "v";
+            assert_eq!(result, expected);
 
             Ok(())
         }
@@ -398,15 +398,15 @@ mod tests {
 
             let test_path = "arrays.nums[2]";
             let validated_path = ValidatedPath::new(test_path)?;
-
             let value_path = create_value_path(&validated_path);
 
-            let at = get_toml_at_path(doc, &value_path);
-            let result = match at {
+            let result = get_toml_at_path(doc, &value_path).unwrap();
+            let result = match result {
                 TomlAt::Value(v) => v.as_integer().unwrap(),
                 other => panic!("expected Value, got {:?}", other),
             };
-            assert_eq!(result, 2);
+            let expected = 2;
+            assert_eq!(result, expected);
 
             Ok(())
         }
@@ -429,35 +429,34 @@ mod tests {
             {
                 let test_path = "root_array_like[1].k";
                 let validated_path = ValidatedPath::new(test_path)?;
-
                 let value_path = create_value_path(&validated_path);
 
-                let at = get_toml_at_path(doc, &value_path);
-                let result = match at {
+                let result = get_toml_at_path(doc, &value_path).unwrap();
+                let result = match result {
                     TomlAt::Value(v) => v.as_str().unwrap(),
                     other => panic!("expected Value, got {:?}", other),
                 };
-                assert_eq!(result, "v1");
+                let expected = "v1";
+                assert_eq!(result, expected);
             }
 
             // root_array_like[1].arr[2] == 3
             {
                 let test_path = "root_array_like[1].arr[2]";
                 let validated_path = ValidatedPath::new(test_path)?;
-
                 let value_path = create_value_path(&validated_path);
 
-                let at = get_toml_at_path(doc, &value_path);
-                let result = match at {
+                let result = get_toml_at_path(doc, &value_path).unwrap();
+                let result = match result {
                     TomlAt::Value(v) => v.as_integer().unwrap(),
                     other => panic!("expected Value, got {:?}", other),
                 };
-                assert_eq!(result, 3);
+                let expected = 3;
+                assert_eq!(result, expected);
             }
 
             Ok(())
         }
-
         // ---------- Negative ----------
 
         #[test]
@@ -471,7 +470,7 @@ mod tests {
             let doc = doc.as_item();
 
             let value_path = ValuePath::default();
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::EmptyPath));
 
             Ok(())
@@ -492,7 +491,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::KeyNotFound { .. }));
 
             Ok(())
@@ -514,7 +513,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::NotAnObject { .. }));
 
             Ok(())
@@ -536,7 +535,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::NotAnArray { .. }));
 
             Ok(())
@@ -557,7 +556,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::IndexOutOfBounds { .. }));
 
             Ok(())
@@ -578,7 +577,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::IndexOutOfBounds { .. }));
 
             Ok(())
@@ -600,7 +599,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             assert!(matches!(err, PathError::NotAnArray { .. }));
 
             Ok(())
@@ -622,7 +621,7 @@ mod tests {
 
             let value_path = create_value_path(&validated_path);
 
-            let err = get_toml_at_path(doc, &value_path);
+            let err = get_toml_at_path(doc, &value_path).unwrap_err();
             // Depending on traversal details this may appear as NotAnObject or KeyNotFound.
             assert!(matches!(
                 err,

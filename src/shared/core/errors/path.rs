@@ -1,5 +1,6 @@
-use crate::shared::types::{TypeKind, ValuePath};
 use thiserror::Error;
+
+use crate::shared::core::{path::ValuePath, types::TypeKind};
 
 #[derive(Debug, Error)]
 pub enum PathError {

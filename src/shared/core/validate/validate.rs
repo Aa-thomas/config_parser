@@ -1,4 +1,4 @@
-use crate::shared::{errors::PathError, types::ValuePath};
+use crate::shared::core::{errors::PathError, path::ValuePath};
 
 pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
     // Local-only enums: visible only inside this function.

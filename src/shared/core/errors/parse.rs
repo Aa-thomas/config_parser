@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::shared::types::{ConfigFormat, SourceLocation};
+use crate::shared::core::{parse::SourceLocation, types::ConfigFormat};
 
 #[derive(Debug, Error)]
 pub enum ParseError {

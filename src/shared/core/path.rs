@@ -1,25 +1,13 @@
-use crate::{
-    features::validate::validate::validate_path_syntax,
-    shared::core::{
-        adapters::{
-            json::get_json_at_path,
-            toml::{get_toml_at_path, TomlAt},
-        },
-        errors::PathError,
-        types::{ConfigDocument, ConfigValue},
+use crate::shared::core::{
+    adapters::{
+        json::get_json_at_path,
+        toml::{get_toml_at_path, TomlAt},
     },
+    errors::PathError,
+    types::{ConfigDocument, ConfigValue},
+    validate::validate::validate_path_syntax,
 };
 use std::{fmt, str::FromStr};
-
-pub fn get_value_at_path<'a>(
-    doc: ConfigDocument<'a>,
-    vp: &ValuePath,
-) -> PathResult<ConfigValue<'a>> {
-    match doc {
-        ConfigDocument::Json(v) => get_json_at_path(v, vp),
-        ConfigDocument::Toml(it) => get_toml_at_path(it, vp),
-    }
-}
 
 pub fn create_value_path(validated_path: &ValidatedPath) -> ValuePath {
     let mut output_path = ValuePath::new();

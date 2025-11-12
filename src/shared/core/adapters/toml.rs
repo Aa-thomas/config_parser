@@ -1,7 +1,7 @@
 use crate::shared::core::{
     errors::PathError,
-    path::{PathSeg, ValuePath},
-    types::{PathResult, TypeKind},
+    path::{PathResult, PathSeg, ValuePath},
+    types::TypeKind,
 };
 
 pub fn get_toml_at_path<'a>(
