@@ -1,10 +1,12 @@
+use core::fmt;
+
 use thiserror::Error;
 
 use crate::shared::core::{parse::SourceLocation, types::ConfigFormat};
 
-#[derive(Debug, Error)]
+#[derive(Error)]
 pub enum ParseError {
-    #[error("{format:?} parse error at {loc}: unexpected token: expected {expected}, found {found}\n{snippet}")]
+    #[error("{format:?} parse error at {loc}: unexpected token: expected {expected}, found `{found}`\n{snippet}")]
     UnexpectedToken {
         format: ConfigFormat,
         loc: SourceLocation,
@@ -43,7 +45,7 @@ pub enum ParseError {
         snippet: String,
     },
 
-    #[error("{format:?} parse error at {loc}: syntax error: expected {expected}, found {found}\n{snippet}")]
+    #[error("{format:?} parse error at {loc}: syntax error: expected {expected}, found `{found}`\n{snippet}")]
     SyntaxError {
         format: ConfigFormat,
         loc: SourceLocation,
@@ -60,4 +62,10 @@ pub enum ParseError {
         source: Box<dyn std::error::Error + Send + Sync + 'static>,
         snippet: String,
     },
+}
+
+impl fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
 }

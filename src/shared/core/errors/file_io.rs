@@ -1,7 +1,8 @@
+use core::fmt;
 use std::{io, path::Path};
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Error)]
 pub enum FileIoError {
     #[error("FileIoError: could not read {path}: {reason}. {hint}")]
     ReadFailed {
@@ -112,5 +113,11 @@ impl FileIoError {
             reason,
             hint,
         }
+    }
+}
+
+impl fmt::Debug for FileIoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

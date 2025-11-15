@@ -1,1 +1,1 @@
---file ~/Documents/code/main-projects/config_parser/.fixtures/tfix.toml --format toml read top.int
+--file ~/Documents/code/main-projects/config_parser/.fixtures/jfix.json --format json read top.int

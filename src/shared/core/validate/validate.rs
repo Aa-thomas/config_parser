@@ -1,12 +1,12 @@
 use crate::shared::core::{errors::PathError, path::ValuePath};
 
 pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
-    // Local-only enums: visible only inside this function.
     enum State {
         BetweenSeg,
         BareKey,
         Bracket(BracketState),
     }
+
     enum BracketState {
         Start,              // just saw '['
         Index,              // digits for array index
@@ -18,9 +18,11 @@ pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
     use BracketState::*;
     use State::*;
 
+    // Basic validation
     if input.is_empty() {
         return Err(PathError::EmptyPath);
     }
+
     if input.starts_with('.') {
         return Err(PathError::invalid_seg(
             ValuePath::new(),
@@ -28,6 +30,7 @@ pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
             "path cannot start with dot",
         ));
     }
+
     if input.ends_with('.') {
         return Err(PathError::invalid_seg(
             ValuePath::new(),
@@ -35,36 +38,23 @@ pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
             "path cannot end with dot",
         ));
     }
+
     if input.contains("..") {
         return Err(PathError::invalid_seg(
             ValuePath::new(),
-            "..",
+            input,
             "consecutive dots not allowed",
         ));
     }
 
     let mut state = BetweenSeg;
-
-    // scratch vars used while inside [...]
-    let mut saw_any_in_bracket = false;
-    let mut index_only_digits = true;
-
-    // track empty segments like "a..b"
-    let mut seg_started = false;
+    let mut bracket_start_idx = 0;
 
     for (i, ch) in input.char_indices() {
         state = match (state, ch) {
             // -------- Between segments --------
-            (BetweenSeg, '.') => {
-                return Err(PathError::invalid_seg(
-                    ValuePath::new(),
-                    &input[..=i],
-                    "empty segment",
-                ));
-            }
             (BetweenSeg, '[') => {
-                saw_any_in_bracket = false;
-                index_only_digits = true;
+                bracket_start_idx = i;
                 Bracket(Start)
             }
             (BetweenSeg, ']') => {
@@ -74,26 +64,12 @@ pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
                     "unmatched closing bracket",
                 ));
             }
-            (BetweenSeg, c) => {
-                if c == '.' || c == '[' || c == ']' {
-                    return Err(PathError::invalid_seg(
-                        ValuePath::new(),
-                        &input[..=i],
-                        "unexpected separator",
-                    ));
-                }
-                seg_started = true;
-                BareKey
-            }
+            (BetweenSeg, _) => BareKey,
 
             // -------- Bare key (top-level) --------
-            (BareKey, '.') => {
-                seg_started = false;
-                BetweenSeg
-            }
+            (BareKey, '.') => BetweenSeg,
             (BareKey, '[') => {
-                saw_any_in_bracket = false;
-                index_only_digits = true;
+                bracket_start_idx = i;
                 Bracket(Start)
             }
             (BareKey, ']') => {
@@ -105,95 +81,77 @@ pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
             }
             (BareKey, _) => BareKey,
 
-            // -------- Inside brackets --------
-            (Bracket(Start), '"') | (Bracket(Start), '\'') => {
-                saw_any_in_bracket = true;
-                Bracket(Quoted { q: ch })
-            }
+            // -------- Inside brackets: Start state --------
+            (Bracket(Start), '"') | (Bracket(Start), '\'') => Bracket(Quoted { q: ch }),
             (Bracket(Start), ']') => {
                 return Err(PathError::invalid_seg(
                     ValuePath::new(),
-                    "[]",
+                    &input[bracket_start_idx..=i],
                     "empty brackets not allowed",
                 ));
             }
-            (Bracket(Start), c) => {
-                saw_any_in_bracket = true;
-                index_only_digits &= c.is_ascii_digit();
-                if c.is_ascii_digit() {
-                    Bracket(Index)
-                } else {
-                    Bracket(Bare)
-                }
+            (Bracket(Start), c) if c.is_ascii_digit() => Bracket(Index),
+            (Bracket(Start), _) => Bracket(Bare),
+
+            // -------- Inside brackets: Index state --------
+            (Bracket(Index), ']') => BetweenSeg,
+            (Bracket(Index), c) if c.is_ascii_digit() => Bracket(Index),
+            (Bracket(Index), _) => {
+                return Err(PathError::invalid_seg(
+                    ValuePath::new(),
+                    &input[bracket_start_idx..=i],
+                    "array index must contain only digits",
+                ));
             }
 
-            (Bracket(Index), ']') => {
-                if !saw_any_in_bracket {
-                    return Err(PathError::invalid_seg(
-                        ValuePath::new(),
-                        "[]",
-                        "empty brackets not allowed",
-                    ));
-                }
-                if !index_only_digits {
-                    return Err(PathError::invalid_seg(
-                        ValuePath::new(),
-                        &input[..=i],
-                        "index must be digits",
-                    ));
-                }
-                BetweenSeg
-            }
-            (Bracket(Index), c) => {
-                saw_any_in_bracket = true;
-                index_only_digits &= c.is_ascii_digit();
-                Bracket(Index)
-            }
-
+            // -------- Inside brackets: Quoted state --------
             (Bracket(Quoted { q }), c) if c == q => {
                 // closed the quote; now the very next char must be ']'
                 Bracket(ExpectClose)
             }
-            (Bracket(Quoted { q: _ }), ']') => {
-                // hitting ']' while still in quotes → unclosed quote
-                return Err(PathError::invalid_seg(
-                    ValuePath::new(),
-                    &input[..=i],
-                    "unclosed quote",
-                ));
+            (Bracket(Quoted { q }), _) => {
+                // Any character inside quotes is valid, including ']'
+                Bracket(Quoted { q })
             }
-            (Bracket(Quoted { q }), _) => Bracket(Quoted { q }),
 
+            // -------- Inside brackets: ExpectClose state --------
             (Bracket(ExpectClose), ']') => BetweenSeg,
             (Bracket(ExpectClose), _) => {
                 return Err(PathError::invalid_seg(
                     ValuePath::new(),
-                    &input[..=i],
-                    "quoted key must be immediately closed by ']'",
+                    &input[bracket_start_idx..=i],
+                    "quoted key must be immediately followed by ']'",
                 ));
             }
 
+            // -------- Inside brackets: Bare (unquoted non-digit) state --------
             (Bracket(Bare), ']') => {
                 return Err(PathError::invalid_seg(
                     ValuePath::new(),
-                    &input[..=i],
-                    "bracket content must be either a number or quoted string",
+                    &input[bracket_start_idx..=i],
+                    "bracket content must be either a quoted string or numeric index",
                 ));
             }
             (Bracket(Bare), _) => Bracket(Bare),
         };
     }
 
-    // finalize
+    // Finalize: ensure we ended in a valid state
     match state {
         Bracket(Quoted { .. }) => Err(PathError::invalid_seg(
             ValuePath::new(),
             input,
-            "unclosed quote",
+            "unclosed quote in bracket",
         )),
         Bracket(Start) | Bracket(Index) | Bracket(Bare) | Bracket(ExpectClose) => Err(
             PathError::invalid_seg(ValuePath::new(), input, "unclosed bracket"),
         ),
-        BetweenSeg | BareKey => Ok(()),
+        BetweenSeg => {
+            // Path ended right after a separator (. or ])
+            // This is only invalid if it ended with '.' (already checked)
+            // If it ended with ']', we're in BetweenSeg which is fine
+            Ok(())
+        }
+        BareKey => Ok(()),
     }
 }

@@ -132,6 +132,7 @@ pub fn get_toml_at_path<'a>(
     }
 
     Ok(match cursor {
+        TomlCursor::Item(Item::Value(v)) => TomlAt::Value(v),
         TomlCursor::Item(item) => TomlAt::Item(item),
         TomlCursor::Value(val) => TomlAt::Value(val),
         TomlCursor::Table(tbl) => TomlAt::Table(tbl),
