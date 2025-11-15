@@ -1,4 +1,4 @@
-use crate::shared::core::{errors::PathError, path::ValuePath};
+use crate::shared::core::{errors::PathError, path::ValuePath, types::ConfigDocument};
 
 pub fn validate_path_syntax(input: &str) -> Result<(), PathError> {
     enum State {

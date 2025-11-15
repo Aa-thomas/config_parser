@@ -1,4 +1,5 @@
 pub mod adapters;
+pub mod detect;
 pub mod errors;
 pub mod parse;
 pub mod path;

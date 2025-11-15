@@ -4,6 +4,7 @@ pub mod parse;
 pub mod path;
 pub mod usage;
 pub mod value_type;
+pub mod detect_file;
 
 pub use file_io::FileIoError;
 pub use not_supported::NotSupportedError;

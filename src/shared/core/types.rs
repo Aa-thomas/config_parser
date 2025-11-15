@@ -1,9 +1,5 @@
-use crate::shared::core::{
-    adapters::toml::TomlAt,
-    errors::{ParseError, PathError},
-};
+use crate::shared::core::adapters::toml::TomlAt;
 use clap::ValueEnum;
-use std::{fmt, path::PathBuf};
 
 //----- COMMON TYPES -----
 
@@ -17,7 +13,7 @@ pub enum ConfigValue<'a> {
     Toml(TomlAt<'a>),
 }
 
-#[derive(Copy, Clone, Debug, ValueEnum)]
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq)]
 pub enum ConfigFormat {
     Json,
     Toml,
