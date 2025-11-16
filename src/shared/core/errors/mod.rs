@@ -56,4 +56,4 @@ impl ConfigError {
     }
 }
 
-type ConfigResult<T> = Result<T, ConfigError>;
+pub type ConfigResult<T> = Result<T, ConfigError>;

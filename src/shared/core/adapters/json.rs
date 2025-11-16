@@ -1,7 +1,7 @@
 use crate::shared::core::{
     errors::path::PathError,
     path::{PathResult, PathSeg, ValuePath},
-    types::TypeKind,
+    types::{ConfigValue, TypeKind},
 };
 
 pub fn get_json_at_path<'a>(
