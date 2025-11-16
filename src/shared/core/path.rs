@@ -52,15 +52,10 @@ pub fn create_value_path(validated_path: &ValidatedPath) -> PathResult<ValuePath
 
             State::InQuotes(q_mark) => match character {
                 character if character == q_mark => {
-                    println!("INQUOTES: pushing to output_path: {temporary_buffer}");
                     push_key(&mut output_path, &mut temporary_buffer);
-                    println!("INQUOTES: finished pushing temporary_buffer: {temporary_buffer}");
                     state = State::InBracket;
                 }
-                _ => {
-                    println!("INQUOTES:pushing to temporary_buffer: {character}");
-                    temporary_buffer.push(character)
-                }
+                _ => temporary_buffer.push(character),
             },
         }
     }

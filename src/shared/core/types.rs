@@ -3,9 +3,9 @@ use clap::ValueEnum;
 
 //----- COMMON TYPES -----
 
-pub enum ConfigDocument<'a> {
-    Json(&'a serde_json::Value),
-    Toml(&'a toml_edit::Item),
+pub enum ConfigDocument {
+    Json(serde_json::Value),
+    Toml(toml_edit::Document),
 }
 
 pub enum ConfigValue<'a> {
@@ -114,5 +114,3 @@ impl TypeKind {
         }
     }
 }
-
-// ----- PATH TYPES -----

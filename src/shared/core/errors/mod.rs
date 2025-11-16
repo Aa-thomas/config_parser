@@ -1,10 +1,10 @@
+pub mod detect_file;
 pub mod file_io;
 pub mod not_supported;
 pub mod parse;
 pub mod path;
 pub mod usage;
 pub mod value_type;
-pub mod detect_file;
 
 pub use file_io::FileIoError;
 pub use not_supported::NotSupportedError;
@@ -15,6 +15,8 @@ pub use value_type::TypeError;
 
 use std::process::ExitCode;
 use thiserror::Error;
+
+use crate::shared::core::errors::detect_file::DetectError;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -34,6 +36,9 @@ pub enum ConfigError {
     Type(#[from] TypeError),
 
     #[error(transparent)]
+    Detect(#[from] DetectError),
+
+    #[error(transparent)]
     NotSupported(#[from] NotSupportedError),
 }
 
@@ -42,6 +47,7 @@ impl ConfigError {
         match self {
             ConfigError::Usage(_) => ExitCode::from(2),
             ConfigError::FileIO(_) => ExitCode::from(3),
+            ConfigError::Detect(_) => ExitCode::from(3),
             ConfigError::Parse(_) => ExitCode::from(3),
             ConfigError::Path(_) => ExitCode::from(4),
             ConfigError::Type(_) => ExitCode::from(5),
@@ -49,3 +55,5 @@ impl ConfigError {
         }
     }
 }
+
+type ConfigResult<T> = Result<T, ConfigError>;

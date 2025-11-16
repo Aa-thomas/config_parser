@@ -32,6 +32,7 @@ pub enum Command {
             value_name = "KEY_PATH",
             help = "Dot or index path like network.timeout or servers[0].host"
         )]
+        file: PathBuf,
         key_path: String,
     },
 
