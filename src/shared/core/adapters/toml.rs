@@ -1,20 +1,20 @@
 use crate::shared::core::{
     errors::PathError,
     path::{PathResult, PathSeg, ValuePath},
-    types::TypeKind,
+    types::{ConfigValue, TypeKind},
 };
 
 pub fn get_toml_at_path<'a>(
-    document: &'a toml_edit::Item,
+    document: &'a toml_edit::Document,
     path: &ValuePath,
-) -> PathResult<TomlAt<'a>> {
+) -> PathResult<ConfigValue> {
     use toml_edit::{Item, Value};
 
     if path.is_empty() {
         return Err(PathError::EmptyPath);
     }
 
-    let mut cursor = TomlCursor::Item(document);
+    let mut cursor = TomlCursor::Item(document.as_item());
     let mut prefix = ValuePath::default();
 
     for seg in &path.0 {
@@ -131,52 +131,11 @@ pub fn get_toml_at_path<'a>(
         }
     }
 
-    Ok(match cursor {
-        TomlCursor::Item(Item::Value(v)) => TomlAt::Value(v),
-        TomlCursor::Item(item) => TomlAt::Item(item),
-        TomlCursor::Value(val) => TomlAt::Value(val),
-        TomlCursor::Table(tbl) => TomlAt::Table(tbl),
-    })
+    let item = cursor.into_item();
+    Ok(ConfigValue::Toml(item))
 }
 
 //----- TOML TYPES -----
-#[derive(Debug)]
-pub enum TomlAt<'a> {
-    Item(&'a toml_edit::Item),
-    Value(&'a toml_edit::Value),
-    Table(&'a toml_edit::Table),
-}
-
-impl<'a> TomlAt<'a> {
-    pub fn as_value(&self) -> Option<&'a toml_edit::Value> {
-        match self {
-            TomlAt::Value(v) => Some(v),
-            TomlAt::Item(item) => item.as_value(),
-            TomlAt::Table(_) => None,
-        }
-    }
-
-    fn type_kind(&self) -> TypeKind {
-        match self {
-            TomlAt::Item(item) => TypeKind::from_toml_item(item),
-            TomlAt::Value(val) => TypeKind::from_toml_value(val),
-            TomlAt::Table(_) => {
-                TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
-            }
-        }
-    }
-}
-
-impl<'a> std::fmt::Display for TomlAt<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TomlAt::Item(item) => write!(f, "{}", item),
-            TomlAt::Value(val) => write!(f, "{}", val),
-            TomlAt::Table(tbl) => write!(f, "{}", tbl),
-        }
-    }
-}
-
 pub enum TomlCursor<'a> {
     Item(&'a toml_edit::Item),
     Value(&'a toml_edit::Value),
@@ -191,6 +150,16 @@ impl<'a> TomlCursor<'a> {
             TomlCursor::Table(_) => {
                 TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
             }
+        }
+    }
+
+    pub fn into_item(self) -> toml_edit::Item {
+        use toml_edit::Item;
+
+        match self {
+            TomlCursor::Item(item) => item.clone(),
+            TomlCursor::Value(val) => Item::Value(val.clone()),
+            TomlCursor::Table(tbl) => Item::Table(tbl.clone()),
         }
     }
 }

@@ -21,17 +21,15 @@ pub fn detect_and_parse(data: &str) -> Result<ConfigDocument, ConfigError> {
 pub fn get_config_value_at_path<'a>(
     path: &'a ValuePath,
     document: &'a ConfigDocument,
-) -> PathResult<ConfigValue<'a>> {
+) -> PathResult<ConfigValue> {
     match document {
         ConfigDocument::Json(json_document) => {
-            let retreived_value = get_json_at_path(json_document, path)?;
-            let converted_value = ConfigValue::Json(retreived_value);
-            Ok(converted_value)
+            let json_value = get_json_at_path(json_document, path)?;
+            Ok(json_value)
         }
         ConfigDocument::Toml(toml_document) => {
-            let retreived_value = get_toml_at_path(toml_document.as_item(), path)?;
-            let converted_value = ConfigValue::Toml(retreived_value);
-            Ok(converted_value)
+            let toml_item = get_toml_at_path(toml_document, path)?;
+            Ok(toml_item)
         }
     }
 }

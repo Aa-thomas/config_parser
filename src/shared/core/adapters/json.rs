@@ -7,7 +7,7 @@ use crate::shared::core::{
 pub fn get_json_at_path<'a>(
     document: &'a serde_json::Value,
     path: &ValuePath,
-) -> PathResult<&'a serde_json::Value> {
+) -> PathResult<ConfigValue> {
     use serde_json::Value;
 
     if path.is_empty() {
@@ -43,7 +43,8 @@ pub fn get_json_at_path<'a>(
         }
     }
 
-    Ok(cur)
+    let value = ConfigValue::Json(cur.clone());
+    Ok(value)
 }
 
 #[cfg(feature = "with-serde-json")]

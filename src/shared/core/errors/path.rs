@@ -88,7 +88,7 @@ pub enum PathError {
     },
 
     #[error(
-        "Invalid numeric index at `{prefix}`: \
+        "Invalid numeric index at `{prefix}``: \
          segment between '[' and ']' was `{raw}` (expected a non-negative integer)."
     )]
     InvalidIndex {
@@ -167,6 +167,6 @@ impl PathError {
 
 impl fmt::Debug for PathError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
+        write!(f, "{}", self)
     }
 }

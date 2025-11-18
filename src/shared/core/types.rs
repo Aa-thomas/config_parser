@@ -1,16 +1,17 @@
-use crate::shared::core::adapters::toml::TomlAt;
 use clap::ValueEnum;
 
 //----- COMMON TYPES -----
 
+#[derive(Debug)]
 pub enum ConfigDocument {
     Json(serde_json::Value),
     Toml(toml_edit::Document),
 }
 
-pub enum ConfigValue<'a> {
-    Json(&'a serde_json::Value),
-    Toml(TomlAt<'a>),
+#[derive(Debug)]
+pub enum ConfigValue {
+    Json(serde_json::Value),
+    Toml(toml_edit::Item),
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, PartialEq)]

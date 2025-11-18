@@ -1,10 +1,6 @@
 #[cfg(test)]
 pub mod tests_read {
-
-    use std::borrow::Cow;
-
     use crate::shared::core::path::{PathSeg, ValuePath};
-
     use serde_json::json;
 
     // ==========================
@@ -12,11 +8,11 @@ pub mod tests_read {
     // ==========================
 
     /// Flatten a ValuePath into ["key", "1", "key", ...] for easy asserts.
-    fn create_segments_from<'a>(vp: &'a ValuePath) -> Vec<Cow<'a, str>> {
+    fn create_segments_from(vp: &ValuePath) -> Vec<String> {
         vp.0.iter()
             .map(|seg| match seg {
-                PathSeg::Key(k) => Cow::Borrowed(k.as_str()),
-                PathSeg::Index(i) => Cow::Owned(i.to_string()),
+                PathSeg::Key(k) => k.clone(),
+                PathSeg::Index(i) => i.to_string(),
             })
             .collect()
     }
@@ -37,7 +33,7 @@ pub mod tests_read {
         #[test]
         fn parses_dot_only() -> PathResult<()> {
             let test_path = "top.int";
-            let expected = ["top", "int"];
+            let expected: Vec<String> = vec!["top", "int"].into_iter().map(String::from).collect();
 
             println!("Test Path: {test_path}\nExpected: {expected:?}\n");
 
@@ -52,7 +48,10 @@ pub mod tests_read {
         #[test]
         fn parses_index_in_brackets() -> PathResult<()> {
             let test_path = "arrays.nums[2]";
-            let expected = ["arrays", "nums", "2"];
+            let expected: Vec<String> = vec!["arrays", "nums", "2"]
+                .into_iter()
+                .map(String::from)
+                .collect();
 
             println!("Test Path: {test_path}\nExpected: {expected:?}\n");
 
@@ -67,7 +66,10 @@ pub mod tests_read {
         #[test]
         fn parses_multiple_consecutive_indices() -> PathResult<()> {
             let test_path = "root_array_like[1][2]";
-            let expected = ["root_array_like", "1", "2"];
+            let expected: Vec<String> = vec!["root_array_like", "1", "2"]
+                .into_iter()
+                .map(String::from)
+                .collect();
 
             println!("Test Path: {test_path}\nExpected: {expected:?}\n");
 
@@ -82,7 +84,10 @@ pub mod tests_read {
         #[test]
         fn parses_mixed_dot_and_brackets() -> PathResult<()> {
             let test_path = "nested.arr_in_obj[1].y[2]";
-            let expected = ["nested", "arr_in_obj", "1", "y", "2"];
+            let expected: Vec<String> = vec!["nested", "arr_in_obj", "1", "y", "2"]
+                .into_iter()
+                .map(String::from)
+                .collect();
 
             println!("Test Path: {test_path}\nExpected: {expected:?}\n");
 
@@ -97,7 +102,10 @@ pub mod tests_read {
         #[test]
         fn parses_quoted_key_double_quotes() -> PathResult<()> {
             let test_path = r#"top["spaced key"]["dot.key"]"#;
-            let expected = ["top", "spaced key", "dot.key"];
+            let expected: Vec<String> = vec!["top", "spaced key", "dot.key"]
+                .into_iter()
+                .map(String::from)
+                .collect();
 
             println!("Test Path: {test_path}\nExpected: {expected:?}\n");
 
@@ -112,7 +120,10 @@ pub mod tests_read {
         #[test]
         fn parses_quoted_key_single_quotes() -> PathResult<()> {
             let test_path = r#"top['spaced key']['emoji']"#;
-            let expected = ["top", "spaced key", "emoji"];
+            let expected: Vec<String> = vec!["top", "spaced key", "emoji"]
+                .into_iter()
+                .map(String::from)
+                .collect();
 
             println!("Test Path: {test_path}\nExpected: {expected:?}\n");
 
@@ -128,7 +139,8 @@ pub mod tests_read {
         fn parses_unicode_keys() -> PathResult<()> {
             // Case 1
             let test_path1 = r#"i18n["ключ"]"#;
-            let expected1 = ["i18n", "ключ"];
+            let expected1: Vec<String> =
+                vec!["i18n", "ключ"].into_iter().map(String::from).collect();
 
             println!("Test Path: {test_path1}\nExpected: {expected1:?}\n");
 
@@ -139,7 +151,10 @@ pub mod tests_read {
 
             // Case 2
             let test_path2 = r#"i18n["日本語"]["キー"]"#;
-            let expected2 = ["i18n", "日本語", "キー"];
+            let expected2: Vec<String> = vec!["i18n", "日本語", "キー"]
+                .into_iter()
+                .map(String::from)
+                .collect();
 
             println!("Test Path: {test_path2}\nExpected: {expected2:?}\n");
 
@@ -159,7 +174,8 @@ pub mod tests_read {
         use crate::shared::core::{
             adapters::json::get_json_at_path,
             errors::PathError,
-            path::{create_value_path, PathResult, ValidatedPath},
+            path::{create_value_path, PathResult, ValidatedPath, ValuePath},
+            types::ConfigValue,
         };
 
         use super::*;
@@ -170,13 +186,25 @@ pub mod tests_read {
         fn json_resolves_simple_dot() -> PathResult<()> {
             let document = json!({ "top": { "int": 1 } });
             let test_path = "top.int";
-            let expected = 1;
+            let expected: i64 = 1;
 
             println!("JSON: {document}\nTest Path: {test_path}\nExpected: {expected}\n");
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
+
             let result = get_json_at_path(&document, &value_path)?;
+            let result = match result {
+                ConfigValue::Json(v) => v.as_i64().ok_or_else(|| {
+                    PathError::unsupported(value_path.clone(), "expected integer")
+                })?,
+                ConfigValue::Toml(item) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected JSON value, got TOML item: {item}"),
+                    ));
+                }
+            };
 
             assert_eq!(result, expected);
             Ok(())
@@ -193,13 +221,25 @@ pub mod tests_read {
                 }
             });
             let test_path = "nested.arr_in_obj[1].y[2]";
-            let expected = 30;
+            let expected: i64 = 30;
 
             println!("JSON: {document}\nTest Path: {test_path}\nExpected: {expected}\n");
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
+
             let result = get_json_at_path(&document, &value_path)?;
+            let result = match result {
+                ConfigValue::Json(v) => v.as_i64().ok_or_else(|| {
+                    PathError::unsupported(value_path.clone(), "expected integer")
+                })?,
+                ConfigValue::Toml(item) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected JSON value, got TOML item: {item}"),
+                    ));
+                }
+            };
 
             assert_eq!(result, expected);
             Ok(())
@@ -219,7 +259,20 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
+
             let result = get_json_at_path(&document, &value_path)?;
+            let result = match result {
+                ConfigValue::Json(v) => v
+                    .as_str()
+                    .ok_or_else(|| PathError::unsupported(value_path.clone(), "expected string"))?
+                    .to_owned(),
+                ConfigValue::Toml(item) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected JSON value, got TOML item: {item}"),
+                    ));
+                }
+            };
 
             assert_eq!(result, expected);
             Ok(())
@@ -237,7 +290,20 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
+
             let result = get_json_at_path(&document, &value_path)?;
+            let result = match result {
+                ConfigValue::Json(v) => v
+                    .as_str()
+                    .ok_or_else(|| PathError::unsupported(value_path.clone(), "expected string"))?
+                    .to_owned(),
+                ConfigValue::Toml(item) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected JSON value, got TOML item: {item}"),
+                    ));
+                }
+            };
 
             assert_eq!(result, expected);
             Ok(())
@@ -247,6 +313,8 @@ pub mod tests_read {
 
         #[test]
         fn json_errors_on_empty_path() -> PathResult<()> {
+            use crate::shared::core::errors::PathError;
+
             let document = json!(null);
             let value_path = ValuePath::default();
             let expected = "PathError::EmptyPath";
@@ -264,6 +332,8 @@ pub mod tests_read {
 
         #[test]
         fn json_errors_on_key_not_found() -> PathResult<()> {
+            use crate::shared::core::errors::PathError;
+
             let document = json!({ "top": {} });
             let test_path = "top.missing";
             let expected = "PathError::KeyNotFound";
@@ -284,6 +354,8 @@ pub mod tests_read {
 
         #[test]
         fn json_errors_on_not_an_object() -> PathResult<()> {
+            use crate::shared::core::errors::PathError;
+
             // nums[0] is a number, so ".x" should cause NotAnObject
             let document = json!({ "arrays": { "nums": [0] } });
             let test_path = "arrays.nums[0].x";
@@ -305,6 +377,8 @@ pub mod tests_read {
 
         #[test]
         fn json_errors_on_not_an_array() -> PathResult<()> {
+            use crate::shared::core::errors::PathError;
+
             // "int" is not an array, so "[0]" should cause NotAnArray
             let document = json!({ "top": { "int": 1 } });
             let test_path = "top.int[0]";
@@ -326,6 +400,8 @@ pub mod tests_read {
 
         #[test]
         fn json_errors_on_index_out_of_bounds() -> PathResult<()> {
+            use crate::shared::core::errors::PathError;
+
             let document = json!({ "arrays": { "nums": [0] } });
             let test_path = "arrays.nums[99]";
             let expected = "PathError::IndexOutOfBounds";
@@ -350,9 +426,10 @@ pub mod tests_read {
     // ============================================================
     mod get_toml_at_path_tests {
         use crate::shared::core::{
-            adapters::toml::{get_toml_at_path, TomlAt},
+            adapters::toml::get_toml_at_path,
             errors::PathError,
-            path::{create_value_path, PathResult, ValidatedPath},
+            path::{create_value_path, PathResult, ValidatedPath, ValuePath},
+            types::ConfigValue,
         };
 
         use super::*;
@@ -367,20 +444,29 @@ pub mod tests_read {
         int = 1
     "#,
             );
-            let doc = doc.as_item();
 
             let test_path = "top.int";
-            let expected = 1;
+            let expected: i64 = 1;
 
             println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
 
-            let result = get_toml_at_path(doc, &value_path).unwrap();
+            let result = get_toml_at_path(&doc, &value_path)?;
             let result = match result {
-                TomlAt::Value(v) => v.as_integer().unwrap(),
-                other => panic!("expected Value, got {:?}", &other),
+                ConfigValue::Toml(item) => item
+                    .as_value()
+                    .and_then(|v| v.as_integer())
+                    .ok_or_else(|| {
+                        PathError::unsupported(value_path.clone(), "expected integer TOML value")
+                    })?,
+                ConfigValue::Json(v) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected TOML value, got JSON value: {v}"),
+                    ));
+                }
             };
 
             assert_eq!(result, expected);
@@ -395,7 +481,6 @@ pub mod tests_read {
         "spaced key" = { "dot.key" = "v", emoji = "🦀" }
     "#,
             );
-            let doc = doc.as_item();
 
             let test_path = r#"top["spaced key"]["dot.key"]"#;
             let expected = "v";
@@ -405,10 +490,21 @@ pub mod tests_read {
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
 
-            let result = get_toml_at_path(doc, &value_path).unwrap();
+            let result = get_toml_at_path(&doc, &value_path)?;
             let result = match result {
-                TomlAt::Value(v) => v.as_str().unwrap(),
-                other => panic!("expected Value, got {:?}", &other),
+                ConfigValue::Toml(item) => item
+                    .as_value()
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        PathError::unsupported(value_path.clone(), "expected string TOML value")
+                    })?
+                    .to_owned(),
+                ConfigValue::Json(v) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected TOML value, got JSON value: {v}"),
+                    ));
+                }
             };
 
             assert_eq!(result, expected);
@@ -423,20 +519,29 @@ pub mod tests_read {
         nums = [0, 1, 2]
     "#,
             );
-            let doc = doc.as_item();
 
             let test_path = "arrays.nums[2]";
-            let expected = 2;
+            let expected: i64 = 2;
 
             println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
 
-            let result = get_toml_at_path(doc, &value_path).unwrap();
+            let result = get_toml_at_path(&doc, &value_path)?;
             let result = match result {
-                TomlAt::Value(v) => v.as_integer().unwrap(),
-                other => panic!("expected Value, got {:?}", &other),
+                ConfigValue::Toml(item) => item
+                    .as_value()
+                    .and_then(|v| v.as_integer())
+                    .ok_or_else(|| {
+                        PathError::unsupported(value_path.clone(), "expected integer TOML value")
+                    })?,
+                ConfigValue::Json(v) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected TOML value, got JSON value: {v}"),
+                    ));
+                }
             };
 
             assert_eq!(result, expected);
@@ -444,57 +549,79 @@ pub mod tests_read {
         }
 
         #[test]
-        fn toml_resolves_array_of_tables_and_nested_array() -> PathResult<()> {
+        fn toml_resolves_array_of_tables() -> PathResult<()> {
             let doc = parse_toml(
                 r#"
         [[root_array_like]]
         k = "v0"
+    "#,
+            );
 
+            // root_array_like[1].k == "v1"
+            let test_path = "root_array_like[1].k";
+            let expected = "v1";
+
+            println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
+
+            let validated_path = ValidatedPath::new(test_path)?;
+            let value_path = create_value_path(&validated_path)?;
+
+            let result = get_toml_at_path(&doc, &value_path)?;
+            let result = match result {
+                ConfigValue::Toml(item) => item
+                    .as_value()
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        PathError::unsupported(value_path.clone(), "expected string TOML value")
+                    })?
+                    .to_owned(),
+                ConfigValue::Json(v) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected TOML value, got JSON value: {v}"),
+                    ));
+                }
+            };
+
+            assert_eq!(result, expected);
+            Ok(())
+        }
+
+        // root_array_like[1].arr[2] == 3
+        fn toml_resolves__nested_array() -> PathResult<()> {
+            let doc = parse_toml(
+                r#"
         [[root_array_like]]
         k = "v1"
         arr = [1, 2, 3]
     "#,
             );
-            let doc = doc.as_item();
 
-            // root_array_like[1].k == "v1"
-            {
-                let test_path = "root_array_like[1].k";
-                let expected = "v1";
+            let test_path = "root_array_like[1].arr[2]";
+            let expected: i64 = 3;
 
-                println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
+            println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
 
-                let validated_path = ValidatedPath::new(test_path)?;
-                let value_path = create_value_path(&validated_path)?;
+            let validated_path = ValidatedPath::new(test_path)?;
+            let value_path = create_value_path(&validated_path)?;
 
-                let result = get_toml_at_path(doc, &value_path).unwrap();
-                let result = match result {
-                    TomlAt::Value(v) => v.as_str().unwrap(),
-                    other => panic!("expected Value, got {:?}", &other),
-                };
+            let result = get_toml_at_path(&doc, &value_path)?;
+            let result = match result {
+                ConfigValue::Toml(item) => item
+                    .as_value()
+                    .and_then(|v| v.as_integer())
+                    .ok_or_else(|| {
+                        PathError::unsupported(value_path.clone(), "expected integer TOML value")
+                    })?,
+                ConfigValue::Json(v) => {
+                    return Err(PathError::unsupported(
+                        value_path.clone(),
+                        format!("expected TOML value, got JSON value: {v}"),
+                    ));
+                }
+            };
 
-                assert_eq!(result, expected);
-            }
-
-            // root_array_like[1].arr[2] == 3
-            {
-                let test_path = "root_array_like[1].arr[2]";
-                let expected = 3;
-
-                println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
-
-                let validated_path = ValidatedPath::new(test_path)?;
-                let value_path = create_value_path(&validated_path)?;
-
-                let result = get_toml_at_path(doc, &value_path).unwrap();
-                let result = match result {
-                    TomlAt::Value(v) => v.as_integer().unwrap(),
-                    other => panic!("expected Value, got {:?}", &other),
-                };
-
-                assert_eq!(result, expected);
-            }
-
+            assert_eq!(result, expected);
             Ok(())
         }
 
@@ -508,14 +635,13 @@ pub mod tests_read {
         int = 1
     "#,
             );
-            let doc = doc.as_item();
 
             let expected = "PathError::EmptyPath";
 
             println!("TOML:\n{doc}\nTest Path: <empty ValuePath>\nExpected: {expected}\n");
 
             let value_path = ValuePath::default();
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::EmptyPath),
@@ -533,7 +659,6 @@ pub mod tests_read {
         int = 1
     "#,
             );
-            let doc = doc.as_item();
 
             let test_path = "top.missing";
             let expected = "PathError::KeyNotFound";
@@ -542,7 +667,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::KeyNotFound { .. }),
@@ -560,7 +685,6 @@ pub mod tests_read {
         int = 1
     "#,
             );
-            let doc = doc.as_item();
 
             // "int" is scalar; ".k" should cause NotAnObject
             let test_path = "top.int.k";
@@ -570,7 +694,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::NotAnObject { .. }),
@@ -588,7 +712,6 @@ pub mod tests_read {
         int = 1
     "#,
             );
-            let doc = doc.as_item();
 
             // "int" is not an array; "[0]" should cause NotAnArray
             let test_path = "top.int[0]";
@@ -598,7 +721,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::NotAnArray { .. }),
@@ -616,7 +739,6 @@ pub mod tests_read {
         nums = [0, 1, 2]
     "#,
             );
-            let doc = doc.as_item();
 
             let test_path = "arrays.nums[9]";
             let expected = "PathError::IndexOutOfBounds";
@@ -625,7 +747,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::IndexOutOfBounds { .. }),
@@ -643,7 +765,6 @@ pub mod tests_read {
         k = "v0"
     "#,
             );
-            let doc = doc.as_item();
 
             let test_path = "root_array_like[3].k";
             let expected = "PathError::IndexOutOfBounds";
@@ -652,7 +773,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::IndexOutOfBounds { .. }),
@@ -670,7 +791,6 @@ pub mod tests_read {
         obj = { inner = { leaf = "end" } }
     "#,
             );
-            let doc = doc.as_item();
 
             // "obj" is a table, not an array
             let test_path = "containers.obj[0]";
@@ -680,7 +800,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             assert!(
                 matches!(err, PathError::NotAnArray { .. }),
@@ -698,7 +818,6 @@ pub mod tests_read {
         k = "v0"
     "#,
             );
-            let doc = doc.as_item();
 
             // Missing [i] before accessing "k"
             let test_path = "root_array_like.k";
@@ -708,7 +827,7 @@ pub mod tests_read {
 
             let validated_path = ValidatedPath::new(test_path)?;
             let value_path = create_value_path(&validated_path)?;
-            let err = get_toml_at_path(doc, &value_path).unwrap_err();
+            let err = get_toml_at_path(&doc, &value_path).unwrap_err();
 
             // Depending on traversal details this may appear as NotAnObject or KeyNotFound.
             assert!(
