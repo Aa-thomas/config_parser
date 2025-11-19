@@ -14,6 +14,16 @@ pub enum ConfigValue {
     Toml(toml_edit::Item),
 }
 
+impl PartialEq for ConfigValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ConfigValue::Json(a), ConfigValue::Json(b)) => a == b,
+            (ConfigValue::Toml(a), ConfigValue::Toml(b)) => a.to_string() == b.to_string(),
+            _ => false,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, ValueEnum, PartialEq)]
 pub enum ConfigFormat {
     Json,

@@ -10,8 +10,8 @@ use crate::shared::{
     shell::present::extract_snippet,
 };
 
-pub fn get_toml_at_path<'a>(
-    document: &'a toml_edit::Document,
+pub fn get_toml_at_path(
+    document: &toml_edit::Document,
     path: &ValuePath,
 ) -> PathResult<ConfigValue> {
     use toml_edit::{Item, Value};
@@ -20,7 +20,7 @@ pub fn get_toml_at_path<'a>(
         return Err(PathError::EmptyPath);
     }
 
-    let mut cursor = TomlCursor::Item(document.as_item());
+    let mut cursor = TomlCursor::Table(document.as_table());
     let mut prefix = ValuePath::default();
 
     for seg in &path.0 {
@@ -88,7 +88,7 @@ pub fn get_toml_at_path<'a>(
                             let next = arr
                                 .get(*i)
                                 .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                            prefix.push_index(*i);
+                            prefix.push_index(*i)?;
                             TomlCursor::Value(next)
                         } else {
                             return Err(PathError::not_array(
@@ -104,7 +104,7 @@ pub fn get_toml_at_path<'a>(
                             let next = arr
                                 .get(*i)
                                 .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                            prefix.push_index(*i);
+                            prefix.push_index(*i)?;
                             TomlCursor::Value(next)
                         } else {
                             return Err(PathError::not_array(
@@ -119,7 +119,7 @@ pub fn get_toml_at_path<'a>(
                         let tbl = aot
                             .get(*i)
                             .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                        prefix.push_index(*i);
+                        prefix.push_index(*i)?;
                         TomlCursor::Table(tbl)
                     }
                     TomlCursor::Item(item) => {

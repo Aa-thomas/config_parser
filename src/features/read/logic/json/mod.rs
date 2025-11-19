@@ -41,7 +41,7 @@ pub fn get_json_at_path<'a>(
                     cur = arr
                         .get(*i)
                         .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                    prefix.push_index(*i);
+                    prefix.push_index(*i)?;
                 } else {
                     return Err(PathError::not_array(prefix, *i, TypeKind::from_json(cur)));
                 }

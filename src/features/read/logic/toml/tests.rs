@@ -138,6 +138,8 @@ mod get_toml_at_path_tests {
             r#"
         [[root_array_like]]
         k = "v0"
+        [[root_array_like]]
+        k = "v1"
     "#,
         )
         .unwrap();
@@ -173,9 +175,12 @@ mod get_toml_at_path_tests {
     }
 
     #[test]
-    fn toml_resolves__nested_array() -> PathResult<()> {
+    fn toml_resolves_nested_array() -> PathResult<()> {
         let doc = parse_toml(
             r#"
+        [[root_array_like]]
+        k = "v0"
+
         [[root_array_like]]
         k = "v1"
         arr = [1, 2, 3]
@@ -433,6 +438,38 @@ mod get_toml_at_path_tests {
             "unexpected error variant: {err}"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn toml_resolves_simple_top_level_key() -> PathResult<()> {
+        let doc = parse_toml(r#"title = "My Title""#).unwrap();
+        let test_path = "title";
+        let expected = "My Title";
+
+        println!("TOML:\n{doc}\nTest Path: {test_path}\nExpected: {expected}\n");
+
+        let validated_path = ValidatedPath::new(test_path)?;
+        let value_path = create_value_path(&validated_path)?;
+
+        let result = get_toml_at_path(&doc, &value_path)?;
+        let result = match result {
+            ConfigValue::Toml(item) => item
+                .as_value()
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    PathError::unsupported(value_path.clone(), "expected string TOML value")
+                })?
+                .to_owned(),
+            ConfigValue::Json(v) => {
+                return Err(PathError::unsupported(
+                    value_path.clone(),
+                    format!("expected TOML value, got JSON value: {v}"),
+                ));
+            }
+        };
+
+        assert_eq!(result, expected);
         Ok(())
     }
 }

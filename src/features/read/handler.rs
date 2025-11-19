@@ -1,6 +1,6 @@
 use crate::{
     features::read::{
-        domain::{ReadCliArgs, ReadRequest},
+        domain::{ReadCliArgs, ReadRequest, ReadResult},
         logic::read_config_value_at_path,
     },
     shared::core::{
@@ -10,9 +10,9 @@ use crate::{
     },
 };
 
-pub fn handle_read_command(cli_args: ReadCliArgs) -> anyhow::Result<()> {
-    let source_document = std::fs::read_to_string(&cli_args.key_path)
-        .map_err(|error| FileIoError::read_failed(&cli_args.key_path, &error))?;
+pub fn handle_read_command(cli_args: ReadCliArgs) -> anyhow::Result<ReadResult> {
+    let source_document = std::fs::read_to_string(&cli_args.document)
+        .map_err(|error| FileIoError::read_failed(&cli_args.document, &error))?;
     let config_document = detect_and_parse(&source_document)?;
 
     let validated_path = ValidatedPath::new(&cli_args.key_path)?;
@@ -21,8 +21,9 @@ pub fn handle_read_command(cli_args: ReadCliArgs) -> anyhow::Result<()> {
     let config_value = read_config_value_at_path(ReadRequest {
         document: &config_document,
         path: value_path,
-    });
+    })?;
 
-    println!("{:?}", config_value);
-    Ok(())
+    Ok(ReadResult {
+        value: config_value,
+    })
 }

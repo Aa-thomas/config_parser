@@ -116,8 +116,7 @@ impl ValuePath {
         let idx = s
             .parse::<usize>()
             .map_err(|_| PathError::invalid_index(prefix, s.to_string()))?;
-        self.push_index(idx);
-        Ok(())
+        self.push_index(idx)
     }
 
     pub fn pop(&mut self) {
