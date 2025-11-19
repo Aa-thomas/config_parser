@@ -2,8 +2,6 @@
 mod detect_format_tests {
     use crate::shared::core::{detect::detect_format, types::ConfigFormat};
 
-    use super::*;
-
     // ==========================
     // JSON detection
     // ==========================

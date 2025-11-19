@@ -1,7 +1,13 @@
-use crate::shared::core::{
-    errors::path::PathError,
-    path::{PathResult, PathSeg, ValuePath},
-    types::{ConfigValue, TypeKind},
+mod tests;
+
+use crate::shared::{
+    core::{
+        errors::{ParseError, PathError},
+        parse::parse_types::SourceLocation,
+        path::{PathResult, PathSeg, ValuePath},
+        types::{ConfigFormat, ConfigValue, TypeKind},
+    },
+    shell::present::extract_snippet,
 };
 
 pub fn get_json_at_path<'a>(
@@ -47,12 +53,10 @@ pub fn get_json_at_path<'a>(
     Ok(value)
 }
 
-#[cfg(feature = "with-serde-json")]
 impl From<(ConfigFormat, &str, serde_json::Error)> for ParseError {
     fn from((format, src, err): (ConfigFormat, &str, serde_json::Error)) -> Self {
         // serde_json::Error exposes line()/column()
 
-        use crate::shared::types::SourceLocation;
         let line = err.line();
         let column = err.column();
         let loc = SourceLocation::new(line as usize, column as usize);

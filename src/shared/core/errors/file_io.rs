@@ -34,7 +34,7 @@ pub enum FileIoError {
     },
 }
 
-pub fn io_reason_and_hint(kind: io::ErrorKind, path: &str, op: &str) -> (String, String) {
+pub fn io_reason_and_hint(kind: io::ErrorKind, path: &str, _op: &str) -> (String, String) {
     use io::ErrorKind::*;
     match kind {
         NotFound => (

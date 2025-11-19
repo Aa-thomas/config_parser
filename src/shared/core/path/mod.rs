@@ -1,3 +1,5 @@
+pub mod tests;
+
 use crate::shared::core::{errors::PathError, validate::validate::validate_path_syntax};
 use std::{fmt, str::FromStr};
 

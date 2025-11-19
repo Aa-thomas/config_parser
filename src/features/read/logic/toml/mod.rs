@@ -1,7 +1,13 @@
-use crate::shared::core::{
-    errors::PathError,
-    path::{PathResult, PathSeg, ValuePath},
-    types::{ConfigValue, TypeKind},
+mod tests;
+
+use crate::shared::{
+    core::{
+        errors::{ParseError, PathError},
+        parse::parse_types::SourceLocation,
+        path::{PathResult, PathSeg, ValuePath},
+        types::{ConfigFormat, ConfigValue, TypeKind},
+    },
+    shell::present::extract_snippet,
 };
 
 pub fn get_toml_at_path<'a>(
@@ -164,15 +170,14 @@ impl<'a> TomlCursor<'a> {
     }
 }
 
-#[cfg(feature = "with-toml-edit")]
 impl From<(ConfigFormat, &str, toml_edit::TomlError)> for ParseError {
     fn from((format, src, err): (ConfigFormat, &str, toml_edit::TomlError)) -> Self {
         // Try to get a byte offset from toml_edit's span; fall back to (1,1)
         let (line, column) = err
             .span()
             .map(|span| {
-                // `span.start()` is a byte offset into `src`
-                let start = span.start();
+                // `span.start` is a byte offset into `src`
+                let start = span.start;
                 offset_to_line_col(src, start)
             })
             .unwrap_or((1, 1));
@@ -184,13 +189,12 @@ impl From<(ConfigFormat, &str, toml_edit::TomlError)> for ParseError {
             format,
             loc,
             #[allow(clippy::box_default)]
-            source: Box::new(err), // preserves real error chain
+            source: Box::new(err),
             snippet,
         }
     }
 }
 
-#[cfg(feature = "with-toml-edit")]
 fn offset_to_line_col(src: &str, offset: usize) -> (usize, usize) {
     let mut line = 1usize;
     let mut col = 1usize;
