@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::shared::core::{
-    errors::{PathError, TypeError},
     path::ValuePath,
     types::{ConfigDocument, ConfigValue},
 };
@@ -21,13 +20,4 @@ pub struct ReadRequest<'a> {
 #[derive(Debug)]
 pub struct ReadResult {
     pub value: ConfigValue,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ReadError {
-    #[error(transparent)]
-    Path(#[from] PathError),
-
-    #[error(transparent)]
-    Type(#[from] TypeError),
 }

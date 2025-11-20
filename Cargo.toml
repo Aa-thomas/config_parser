@@ -22,7 +22,7 @@ predicates = "3"
 [features]
 default = []
 suggest = []
-# with-serde-json = ["dep:serde_json"]
-# with-toml-edit = ["dep:toml_edit"]
 
+[profile.release]
+debug = true
 

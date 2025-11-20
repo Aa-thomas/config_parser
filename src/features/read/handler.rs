@@ -5,12 +5,12 @@ use crate::{
     },
     shared::core::{
         adapters::detect_and_parse,
-        errors::FileIoError,
+        errors::{ConfigResult, FileIoError},
         path::{create_value_path, ValidatedPath},
     },
 };
 
-pub fn handle_read_command(cli_args: ReadCliArgs) -> anyhow::Result<ReadResult> {
+pub fn handle_read_command(cli_args: ReadCliArgs) -> ConfigResult<ReadResult> {
     let source_document = std::fs::read_to_string(&cli_args.document)
         .map_err(|error| FileIoError::read_failed(&cli_args.document, &error))?;
     let config_document = detect_and_parse(&source_document)?;

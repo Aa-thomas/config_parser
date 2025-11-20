@@ -23,7 +23,7 @@ fn read_from_json_fixture() -> anyhow::Result<()> {
 fn read_from_toml_fixture() -> anyhow::Result<()> {
     let args = ReadCliArgs {
         document: PathBuf::from(".fixtures/tfix.toml"),
-        key_path: "owner.name".to_string(),
+        key_path: "top.str".to_string(),
     };
 
     let result = handle_read_command(args)?;
@@ -37,7 +37,7 @@ fn read_from_toml_fixture() -> anyhow::Result<()> {
         _ => return Err(anyhow::anyhow!("Expected a TOML value")),
     };
 
-    assert_eq!(value, "Tom Preston-Werner");
+    assert_eq!(value, "hi");
 
     Ok(())
 }

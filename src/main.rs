@@ -10,7 +10,7 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Read { key_path } => {
             let result = handle_read_command(ReadCliArgs {
-                document: cli.config_document,
+                document: cli.document,
                 key_path,
             })?;
 
@@ -19,19 +19,19 @@ fn main() -> anyhow::Result<()> {
         Command::Set { key_path, value } => {
             println!(
                 "SET  -> file={:?} format={:?} key_path={} value={}",
-                cli.config_document, cli.config_format, key_path, value
+                cli.document, cli.format, key_path, value
             );
         }
         Command::Delete { key_path } => {
             println!(
                 "DEL  -> file={:?} format={:?} key_path={}",
-                cli.config_document, cli.config_format, key_path
+                cli.document, cli.format, key_path
             );
         }
         Command::List { key_path } => {
             println!(
                 "LIST -> file={:?} format={:?} key_path={:?}",
-                cli.config_document, cli.config_format, key_path
+                cli.document, cli.format, key_path
             );
         }
     }

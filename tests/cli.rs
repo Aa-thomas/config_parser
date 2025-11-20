@@ -5,7 +5,7 @@ use predicates::prelude::*;
 #[test]
 fn test_read_json_value() -> anyhow::Result<()> {
     let mut cmd = cargo_bin_cmd!("config_parser");
-    cmd.arg("--config-document")
+    cmd.arg("--document")
         .arg(".fixtures/jfix.json")
         .arg("read")
         .arg("nested.arr_in_obj[1].y[2]");
@@ -20,14 +20,14 @@ fn test_read_json_value() -> anyhow::Result<()> {
 #[test]
 fn test_read_toml_value() -> anyhow::Result<()> {
     let mut cmd = cargo_bin_cmd!("config_parser");
-    cmd.arg("--config-document")
+    cmd.arg("--document")
         .arg(".fixtures/tfix.toml")
         .arg("read")
-        .arg("owner.name");
+        .arg("top.str");
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Tom Preston-Werner"));
+        .stdout(predicate::str::contains("hi"));
 
     Ok(())
 }
@@ -35,7 +35,7 @@ fn test_read_toml_value() -> anyhow::Result<()> {
 #[test]
 fn test_read_file_not_found() -> anyhow::Result<()> {
     let mut cmd = cargo_bin_cmd!("config_parser");
-    cmd.arg("--config-document")
+    cmd.arg("--document")
         .arg("no/such/file.json")
         .arg("read")
         .arg("a.b");

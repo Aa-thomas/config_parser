@@ -10,7 +10,7 @@ use std::path::PathBuf;
 )]
 pub struct Cli {
     #[arg(long, value_name = "PATH", help = "Path to config document")]
-    pub config_document: PathBuf,
+    pub document: PathBuf,
 
     #[arg(
         long,
@@ -18,7 +18,7 @@ pub struct Cli {
         value_name = "FORMAT",
         help = "Format of config document: JSON or TOML"
     )]
-    pub config_format: Option<ConfigFormat>,
+    pub format: Option<ConfigFormat>,
 
     #[command(subcommand)]
     pub command: Command,
