@@ -5,7 +5,7 @@ use clap::ValueEnum;
 #[derive(Debug)]
 pub enum ConfigDocument {
     Json(serde_json::Value),
-    Toml(toml_edit::Document),
+    Toml(Box<toml_edit::Document>),
 }
 
 #[derive(Debug)]

@@ -39,7 +39,7 @@ pub fn io_reason_and_hint(kind: io::ErrorKind, path: &str, _op: &str) -> (String
     match kind {
         NotFound => (
             "No such file or directory".into(),
-            format!("Check the path or create it first: {}", path),
+            format!("Check the path or create it first: {path}"),
         ),
         PermissionDenied => (
             "Permission denied".into(),
@@ -118,6 +118,6 @@ impl FileIoError {
 
 impl fmt::Debug for FileIoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }

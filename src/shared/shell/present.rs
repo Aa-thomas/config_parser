@@ -28,7 +28,7 @@ pub fn suggest<'a>(needle: &str, hay: impl IntoIterator<Item = &'a str>) -> Opti
 
         let score = len_diff.saturating_sub(common_prefix);
 
-        if best.map_or(true, |(best_score, _)| score < best_score) {
+        if best.is_none_or(|(best_score, _)| score < best_score) {
             best = Some((score, h));
         }
     }

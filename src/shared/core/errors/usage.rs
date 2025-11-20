@@ -45,6 +45,6 @@ pub enum UsageError {
 
 impl fmt::Debug for UsageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }

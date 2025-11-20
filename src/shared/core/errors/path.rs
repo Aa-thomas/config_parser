@@ -167,6 +167,6 @@ impl PathError {
 
 impl fmt::Debug for PathError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }

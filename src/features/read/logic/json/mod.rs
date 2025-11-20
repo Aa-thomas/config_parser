@@ -10,8 +10,8 @@ use crate::shared::{
     shell::present::extract_snippet,
 };
 
-pub fn get_json_at_path<'a>(
-    document: &'a serde_json::Value,
+pub fn get_json_at_path(
+    document: &serde_json::Value,
     path: &ValuePath,
 ) -> PathResult<ConfigValue> {
     use serde_json::Value;
@@ -59,9 +59,9 @@ impl From<(ConfigFormat, &str, serde_json::Error)> for ParseError {
 
         let line = err.line();
         let column = err.column();
-        let loc = SourceLocation::new(line as usize, column as usize);
+        let loc = SourceLocation::new(line, column);
         // extract a short snippet around the column
-        let snippet = extract_snippet(src, line as usize, column as usize);
+        let snippet = extract_snippet(src, line, column);
         ParseError::ForeignParseError {
             format,
             loc,

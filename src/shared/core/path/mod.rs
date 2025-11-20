@@ -1,6 +1,6 @@
 pub mod tests;
 
-use crate::shared::core::{errors::PathError, validate::validate::validate_path_syntax};
+use crate::shared::core::{errors::PathError, validate::validation_logic::validate_path_syntax};
 use std::{fmt, str::FromStr};
 
 pub fn create_value_path(validated_path: &ValidatedPath) -> PathResult<ValuePath> {
