@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub mod validate_path_syntax_tests {
     use crate::shared::core::{
-        errors::PathError, path::PathResult, validate::validate::validate_path_syntax,
+        errors::PathError, path::PathResult, validate::validation_logic::validate_path_syntax,
     };
 
     // ============================================
