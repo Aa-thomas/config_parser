@@ -1,6 +1,8 @@
+use core::fmt;
+
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Error)]
 pub enum UsageError {
     #[error("UsageError: missing required flag {flag}. {hint}")]
     MissingFlag {
@@ -39,4 +41,10 @@ pub enum UsageError {
         input: &'static str,
         example: &'static str,
     },
+}
+
+impl fmt::Debug for UsageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
 }

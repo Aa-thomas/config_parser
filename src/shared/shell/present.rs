@@ -1,5 +1,5 @@
 /// Tiny utility to show a caret-line snippet; adjust as you like.
-fn extract_snippet(src: &str, line: usize, column: usize) -> String {
+pub fn extract_snippet(src: &str, line: usize, column: usize) -> String {
     let mut out = String::new();
     if let Some(l) = src.lines().nth(line.saturating_sub(1)) {
         out.push_str(l);

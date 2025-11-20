@@ -1,0 +1,50 @@
+[top]
+int = 1
+bool = true
+# TOML has no null; omit or set to an empty string if needed:
+# null = ""
+str = "hi"
+
+[top."spaced key"]
+"dot.key" = "v"
+emoji = "🦀"
+
+[nested.a.b]
+c = 123
+
+# Array of tables for objects inside nested.arr_in_obj
+[[nested.arr_in_obj]]
+x = 1
+[[nested.arr_in_obj]]
+y = [10, 20, 30]
+
+[arrays]
+nums = [0, 1, 2]
+# Heterogeneous arrays aren't allowed in TOML; store a stringified version
+mixed = ["1", "two", "false", "NULL", "{ k = \"v\" }", "[9, 8]"]
+len1 = ["only"]
+empty = []
+
+[i18n]
+"ключ" = "значение"
+
+[i18n."日本語"]
+"キー" = "値"
+
+[containers.obj.inner]
+leaf = "end"
+
+[containers]
+empty_obj = {}
+
+# Make root_array_like an array of tables (keeps TOML homogeneous)
+[[root_array_like]]
+k = "v0"
+
+[[root_array_like]]
+k = "v1"
+arr = [1, 2, 3]
+
+[[root_array_like]]
+value = "leaf"
+

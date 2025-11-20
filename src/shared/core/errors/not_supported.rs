@@ -1,4 +1,4 @@
-// src/errors/not_supported.rs
+use core::fmt;
 
 use thiserror::Error;
 
@@ -6,7 +6,7 @@ use thiserror::Error;
 /// Use this when the user's request is understood, but we’ve decided not to implement it
 /// (format/command/flag/feature/platform/version constraints, etc.).
 #[non_exhaustive]
-#[derive(Debug, Error)]
+#[derive(Error)]
 pub enum NotSupportedError {
     /// Operation is understood but not supported for the given *config format*.
     /// Example: "set --append" is not supported for TOML arrays in this version.
@@ -44,7 +44,7 @@ pub enum NotSupportedError {
     },
 
     /// Version constraint (tool/library/runtime too old/new for requested op).
-    #[error("{component} version not supported: found {found}, requires {required}. {hint}")]
+    #[error("{component} version not supported: found `{found}`, requires {required}. {hint}")]
     Version {
         component: &'static str, // e.g., "toml_edit", "rustc", "config-cli"
         found: String,           // detected version
@@ -126,5 +126,11 @@ impl NotSupportedError {
     /// the *request* itself. Helpful if you ever want to decide messaging.
     pub fn is_potentially_transient(&self) -> bool {
         matches!(self, Self::Version { .. } | Self::Platform { .. })
+    }
+}
+
+impl fmt::Debug for NotSupportedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

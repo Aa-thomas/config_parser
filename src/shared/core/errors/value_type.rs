@@ -1,9 +1,12 @@
-use crate::shared::types::{TypeKind, ValuePath};
+use core::fmt;
+
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+use crate::shared::core::{path::ValuePath, types::TypeKind};
+
+#[derive(Error)]
 pub enum TypeError {
-    #[error("Type mismatch at {path}: expected {expected}, found {found}")]
+    #[error("Type mismatch at {path}: expected {expected}, found `{found}`")]
     TypeMismatch {
         path: ValuePath,
         expected: TypeKind,
@@ -18,21 +21,23 @@ pub enum TypeError {
         hint: String,         // e.g., " (min=0, max=65535)"; can be "" if unknown
     },
 
-    #[error("Invalid enum variant at {path}: found {found}; allowed: {allowed:?}")]
+    #[error("Invalid enum variant at {path}: found `{found}`; allowed: {allowed:?}")]
     InvalidEnumVariant {
         path: ValuePath,
         found: String,
         allowed: Vec<String>,
     },
 
-    #[error("Invalid pattern at {path}: expected {expect_desc}, found {found}")]
+    #[error("Invalid pattern at {path}: expected {expect_desc}, found `{found}`")]
     InvalidPattern {
         path: ValuePath,
         expect_desc: String, // e.g., "hostname", "regex=^[a-z0-9_-]+$"
         found: String,
     },
 
-    #[error("Array element type mismatch at {path}[{index}]: expected {expected}, found {found}")]
+    #[error(
+        "Array element type mismatch at {path}[{index}]: expected {expected}, found `{found}`"
+    )]
     ArrayElementTypeMismatch {
         path: ValuePath,
         index: usize,
@@ -40,7 +45,7 @@ pub enum TypeError {
         found: TypeKind,
     },
 
-    #[error("Field type mismatch at {path}: field `{field}` expected {expected}, found {found}")]
+    #[error("Field type mismatch at {path}: field `{field}` expected {expected}, found `{found}`")]
     ObjectFieldTypeMismatch {
         path: ValuePath,
         field: String,
@@ -115,5 +120,11 @@ impl TypeError {
 
     pub fn null_not_allowed(path: impl Into<ValuePath>) -> Self {
         Self::NullNotAllowed { path: path.into() }
+    }
+}
+
+impl fmt::Debug for TypeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

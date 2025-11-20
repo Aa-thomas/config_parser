@@ -1,5 +1,5 @@
-use crate::shared::types::ConfigFormat;
-use clap::{Parser, Subcommand, ValueEnum};
+use crate::shared::core::types::ConfigFormat;
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -9,14 +9,14 @@ use std::path::PathBuf;
     version
 )]
 pub struct Cli {
-    #[arg(long, value_name = "PATH", help = "Path to config file")]
-    pub file: PathBuf,
+    #[arg(long, value_name = "PATH", help = "Path to config document")]
+    pub document: PathBuf,
 
     #[arg(
         long,
         value_enum,
         value_name = "FORMAT",
-        help = "Format of config file: JSON or TOML"
+        help = "Format of config document: JSON or TOML"
     )]
     pub format: Option<ConfigFormat>,
 
@@ -37,7 +37,7 @@ pub enum Command {
 
     #[command(about = "Set KEY_PATH to VALUE (types enforced unless --coerce)")]
     Set {
-        #[arg(value_name = "KEY_PATH", help = "Path to key in config file")]
+        #[arg(value_name = "KEY_PATH", help = "Path to key in config document")]
         key_path: String,
 
         #[arg(value_name = "VALUE", help = "Value to set at the given key path")]
@@ -46,7 +46,7 @@ pub enum Command {
 
     #[command(about = "Remove the value at KEY_PATH")]
     Delete {
-        #[arg(value_name = "KEY_PATH", help = "Path to key in config file")]
+        #[arg(value_name = "KEY_PATH", help = "Path to key in config document")]
         key_path: String,
     },
 

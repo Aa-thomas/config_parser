@@ -1,58 +1,26 @@
+mod tests;
+
 use crate::shared::{
-    errors::PathError,
-    types::{PathResult, PathSeg, TomlAt, TomlCursor, TypeKind, ValuePath},
+    core::{
+        errors::{ParseError, PathError},
+        parse::parse_types::SourceLocation,
+        path::{PathResult, PathSeg, ValuePath},
+        types::{ConfigFormat, ConfigValue, TypeKind},
+    },
+    shell::present::extract_snippet,
 };
 
-pub fn get_json_at_path<'a>(
-    root: &'a serde_json::Value,
+pub fn get_toml_at_path(
+    document: &toml_edit::Document,
     path: &ValuePath,
-) -> PathResult<&'a serde_json::Value> {
-    use serde_json::Value;
-
-    if path.is_empty() {
-        return Err(PathError::EmptyPath);
-    }
-
-    let mut cur = root;
-    let mut prefix = ValuePath::default();
-
-    for seg in &path.0 {
-        match seg {
-            PathSeg::Key(k) => {
-                if let Value::Object(map) = cur {
-                    cur = map
-                        .get(k)
-                        .ok_or_else(|| PathError::key_not_found(prefix.clone(), k))?;
-                    prefix.push_key(k.clone());
-                } else {
-                    return Err(PathError::not_object(prefix, k, TypeKind::from_json(cur)));
-                }
-            }
-            PathSeg::Index(i) => {
-                if let Value::Array(arr) = cur {
-                    let len = arr.len();
-                    cur = arr
-                        .get(*i)
-                        .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                    prefix.push_index(*i);
-                } else {
-                    return Err(PathError::not_array(prefix, *i, TypeKind::from_json(cur)));
-                }
-            }
-        }
-    }
-
-    Ok(cur)
-}
-
-pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> PathResult<TomlAt<'a>> {
+) -> PathResult<ConfigValue> {
     use toml_edit::{Item, Value};
 
     if path.is_empty() {
         return Err(PathError::EmptyPath);
     }
 
-    let mut cursor = TomlCursor::Item(root);
+    let mut cursor = TomlCursor::Table(document.as_table());
     let mut prefix = ValuePath::default();
 
     for seg in &path.0 {
@@ -120,7 +88,7 @@ pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> Path
                             let next = arr
                                 .get(*i)
                                 .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                            prefix.push_index(*i);
+                            prefix.push_index(*i)?;
                             TomlCursor::Value(next)
                         } else {
                             return Err(PathError::not_array(
@@ -136,7 +104,7 @@ pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> Path
                             let next = arr
                                 .get(*i)
                                 .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                            prefix.push_index(*i);
+                            prefix.push_index(*i)?;
                             TomlCursor::Value(next)
                         } else {
                             return Err(PathError::not_array(
@@ -151,7 +119,7 @@ pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> Path
                         let tbl = aot
                             .get(*i)
                             .ok_or_else(|| PathError::oob(prefix.clone(), *i, len))?;
-                        prefix.push_index(*i);
+                        prefix.push_index(*i)?;
                         TomlCursor::Table(tbl)
                     }
                     TomlCursor::Item(item) => {
@@ -169,9 +137,78 @@ pub fn get_toml_at_path<'a>(root: &'a toml_edit::Item, path: &ValuePath) -> Path
         }
     }
 
-    Ok(match cursor {
-        TomlCursor::Item(item) => TomlAt::Item(item),
-        TomlCursor::Value(val) => TomlAt::Value(val),
-        TomlCursor::Table(tbl) => TomlAt::Table(tbl),
-    })
+    let item = cursor.into_item();
+    Ok(ConfigValue::Toml(item))
+}
+
+//----- TOML TYPES -----
+pub enum TomlCursor<'a> {
+    Item(&'a toml_edit::Item),
+    Value(&'a toml_edit::Value),
+    Table(&'a toml_edit::Table),
+}
+
+impl<'a> TomlCursor<'a> {
+    pub fn type_kind(&self) -> TypeKind {
+        match self {
+            TomlCursor::Item(item) => TypeKind::from_toml_item(item),
+            TomlCursor::Value(val) => TypeKind::from_toml_value(val),
+            TomlCursor::Table(_) => {
+                TypeKind::from_toml_item(&toml_edit::Item::Table(toml_edit::Table::new()))
+            }
+        }
+    }
+
+    pub fn into_item(self) -> toml_edit::Item {
+        use toml_edit::Item;
+
+        match self {
+            TomlCursor::Item(item) => item.clone(),
+            TomlCursor::Value(val) => Item::Value(val.clone()),
+            TomlCursor::Table(tbl) => Item::Table(tbl.clone()),
+        }
+    }
+}
+
+impl From<(ConfigFormat, &str, toml_edit::TomlError)> for ParseError {
+    fn from((format, src, err): (ConfigFormat, &str, toml_edit::TomlError)) -> Self {
+        // Try to get a byte offset from toml_edit's span; fall back to (1,1)
+        let (line, column) = err
+            .span()
+            .map(|span| {
+                // `span.start` is a byte offset into `src`
+                let start = span.start;
+                offset_to_line_col(src, start)
+            })
+            .unwrap_or((1, 1));
+
+        let loc = SourceLocation::new(line, column);
+        let snippet = extract_snippet(src, line, column);
+
+        ParseError::ForeignParseError {
+            format,
+            loc,
+            #[allow(clippy::box_default)]
+            source: Box::new(err),
+            snippet,
+        }
+    }
+}
+
+fn offset_to_line_col(src: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut col = 1usize;
+
+    for (i, ch) in src.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
 }
