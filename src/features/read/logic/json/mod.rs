@@ -10,10 +10,7 @@ use crate::shared::{
     shell::present::extract_snippet,
 };
 
-pub fn get_json_at_path(
-    document: &serde_json::Value,
-    path: &ValuePath,
-) -> PathResult<ConfigValue> {
+pub fn get_json_at_path(document: &serde_json::Value, path: &ValuePath) -> PathResult<ConfigValue> {
     use serde_json::Value;
 
     if path.is_empty() {
